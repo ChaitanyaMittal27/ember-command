@@ -42,3 +42,6 @@ next-env.d.ts
 
 # The repo-root .gitignore ignores lib/ (Python packaging); the app keeps its source in src/lib/.
 !/src/lib/
+
+# MapLibre worker, copied from node_modules by scripts/copy-maplibre-worker.mjs
+/public/maplibre/
