@@ -2,15 +2,13 @@
 
 import { REGIONS, type Region } from "@/types/data";
 
-export const FIRE_YEARS = [2019, 2020, 2021, 2022, 2023] as const;
-
-export type YearFilter = "all" | (typeof FIRE_YEARS)[number];
+export type YearFilter = "all" | number;
 export type RegionFilter = "all" | Region;
 
-export const YEAR_OPTIONS: { value: YearFilter; label: string }[] = [
-  { value: "all", label: "All years" },
-  ...FIRE_YEARS.map((year) => ({ value: year, label: String(year) })),
-];
+/** "All years" plus one option per year in the data (meta.data.years). */
+export function yearOptions(years: number[]): { value: YearFilter; label: string }[] {
+  return [{ value: "all", label: "All years" }, ...years.map((year) => ({ value: year, label: String(year) }))];
+}
 
 export const REGION_OPTIONS: { value: RegionFilter; label: string }[] = [
   { value: "all", label: "All of BC" },

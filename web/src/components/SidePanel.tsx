@@ -1,16 +1,29 @@
 "use client";
 
 import { useRef } from "react";
+import { useAppState } from "@/components/AppStateProvider";
+import { useDataState } from "@/components/DataProvider";
+import { OverviewTab } from "@/components/tabs/OverviewTab";
+import type { AppData } from "@/lib/data";
 import { TABS, type TabId } from "@/lib/tabs";
 
-interface SidePanelProps {
-  tab: TabId;
-  onTabChange: (tab: TabId) => void;
+/** The active tab's content. Tabs other than Overview are built in later steps. */
+function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
+  if (tab === "overview") return <OverviewTab data={data} />;
+  const active = TABS.find((item) => item.id === tab) ?? TABS[0];
+  return (
+    <>
+      <h2 className="text-[18px] font-semibold">{active.heading}</h2>
+      <p className="text-[13px] leading-[1.55] text-muted">This section is built in step {active.step}.</p>
+    </>
+  );
 }
 
-export function SidePanel({ tab, onTabChange }: SidePanelProps) {
+export function SidePanel() {
+  const { state, dispatch } = useAppState();
+  const dataState = useDataState();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
-  const active = TABS.find((item) => item.id === tab) ?? TABS[0];
+  const tab = state.tab;
 
   // Arrow keys, Home and End move between tabs, as in the WAI-ARIA tabs pattern.
   function onKeyDown(event: React.KeyboardEvent, index: number) {
@@ -23,7 +36,7 @@ export function SidePanel({ tab, onTabChange }: SidePanelProps) {
     const next = moves[event.key];
     if (next === undefined) return;
     event.preventDefault();
-    onTabChange(TABS[next].id);
+    dispatch({ type: "setTab", tab: TABS[next].id });
     buttons.current[next]?.focus();
   }
 
@@ -48,7 +61,7 @@ export function SidePanel({ tab, onTabChange }: SidePanelProps) {
               aria-selected={selected}
               aria-controls="tab-panel"
               tabIndex={selected ? 0 : -1}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => dispatch({ type: "setTab", tab: item.id })}
               onKeyDown={(event) => onKeyDown(event, index)}
               className={
                 "min-h-9 cursor-pointer rounded-md border px-3 py-1.5 text-[13px] " +
@@ -67,12 +80,22 @@ export function SidePanel({ tab, onTabChange }: SidePanelProps) {
       <div
         role="tabpanel"
         id="tab-panel"
-        aria-labelledby={`tab-${active.id}`}
+        aria-labelledby={`tab-${tab}`}
         tabIndex={0}
-        className="flex flex-col gap-[18px] overflow-y-auto px-5 py-[18px]"
+        className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-5 py-[18px]"
       >
-        <h2 className="text-[18px] font-semibold">{active.heading}</h2>
-        <p className="text-[13px] leading-[1.55] text-muted">This section is built in step {active.step}.</p>
+        {dataState.status === "loading" && (
+          <p role="status" className="m-auto py-10 text-center text-[14px] text-muted">
+            Loading fire data…
+          </p>
+        )}
+        {dataState.status === "error" && (
+          <div role="alert" className="m-auto flex flex-col gap-2 py-10 text-center text-[14px] leading-[1.55]">
+            <p className="text-ink">{dataState.message}</p>
+            <p className="text-muted">Check that web/public/data/ contains the exported files.</p>
+          </div>
+        )}
+        {dataState.status === "ready" && <TabContent tab={tab} data={dataState.data} />}
       </div>
     </aside>
   );

@@ -1,17 +1,19 @@
-import { REGION_OPTIONS, YEAR_OPTIONS, type RegionFilter, type YearFilter } from "@/lib/filters";
+"use client";
+
+import { useAppState } from "@/components/AppStateProvider";
+import { useData } from "@/components/DataProvider";
+import { REGION_OPTIONS, yearOptions } from "@/lib/filters";
 
 const SELECT_CLASS =
   "min-h-10 rounded-md border border-line-strong bg-field px-2.5 py-2 text-[14px] text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station";
 
-interface HeaderProps {
-  yearFilter: YearFilter;
-  regionFilter: RegionFilter;
-  onYearChange: (value: YearFilter) => void;
-  onRegionChange: (value: RegionFilter) => void;
-}
+export function Header() {
+  const { state, dispatch } = useAppState();
+  const data = useData();
+  // The years come from the data, so the list is just "All years" until it has loaded.
+  const years = yearOptions(data?.meta.data.years ?? []);
 
-export function Header({ yearFilter, regionFilter, onYearChange, onRegionChange }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-ground px-6 py-3.5">
       <div className="flex flex-col gap-0.5">
@@ -27,13 +29,13 @@ export function Header({ yearFilter, regionFilter, onYearChange, onRegionChange 
         <select
           id="year-filter"
           className={SELECT_CLASS}
-          value={String(yearFilter)}
+          value={String(state.yearFilter)}
           onChange={(event) => {
-            const option = YEAR_OPTIONS.find((item) => String(item.value) === event.target.value);
-            if (option) onYearChange(option.value);
+            const option = years.find((item) => String(item.value) === event.target.value);
+            if (option) dispatch({ type: "setYearFilter", value: option.value });
           }}
         >
-          {YEAR_OPTIONS.map((option) => (
+          {years.map((option) => (
             <option key={option.value} value={String(option.value)}>
               {option.label}
             </option>
@@ -45,10 +47,10 @@ export function Header({ yearFilter, regionFilter, onYearChange, onRegionChange 
         <select
           id="region-filter"
           className={SELECT_CLASS}
-          value={regionFilter}
+          value={state.regionFilter}
           onChange={(event) => {
             const option = REGION_OPTIONS.find((item) => item.value === event.target.value);
-            if (option) onRegionChange(option.value);
+            if (option) dispatch({ type: "setRegionFilter", value: option.value });
           }}
         >
           {REGION_OPTIONS.map((option) => (
