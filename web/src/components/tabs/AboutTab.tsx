@@ -7,6 +7,7 @@ export function AboutTab({ data }: { data: AppData }) {
   return (
     <div className="flex flex-col gap-2.5 text-[14px] leading-[1.55] text-ink-2">
       <h2 className="text-[18px] font-semibold text-ink">Data and limits</h2>
+      <p>Where should BC base its wildfire trucks? Built on NASA satellite fire detections, 2019–2023.</p>
       <p>
         Fires: NASA FIRMS VIIRS 375 m active-fire detections (S-NPP; a 2022 outage filled from NOAA-20), grouped into
         fires. Industrial heat sources removed.

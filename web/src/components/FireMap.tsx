@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DeckGL } from "@deck.gl/react";
 import { IconLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import { setWorkerUrl } from "maplibre-gl";
-import { Map as BaseMap } from "react-map-gl/maplibre";
+import { Map as BaseMap, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { AppData } from "@/lib/data";
 import type { RegionFilter, YearFilter } from "@/lib/filters";
@@ -128,6 +128,18 @@ export default function FireMap({
   onBackgroundClick,
 }: FireMapProps) {
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW);
+  const frame = useRef<HTMLDivElement>(null);
+  const basemap = useRef<MapRef>(null);
+
+  // When the map area changes size (the side panel is dragged, expanded, or the window resized),
+  // tell MapLibre straight away; deck.gl sizes its own canvas from the same box.
+  useEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => basemap.current?.getMap().resize());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const fires = useMemo(
     () => (data ? filterFires(data.fires.fires, yearFilter, regionFilter) : []),
@@ -307,6 +319,7 @@ export default function FireMap({
   }
 
   return (
+    <div ref={frame} className="absolute inset-0">
     <DeckGL
       viewState={viewState}
       onViewStateChange={({ viewState: next }) => setViewState(clampView(next as unknown as ViewState))}
@@ -321,7 +334,8 @@ export default function FireMap({
       }}
       getCursor={({ isDragging, isHovering }) => (isDragging ? "grabbing" : isHovering ? "pointer" : "grab")}
     >
-      <BaseMap reuseMaps mapStyle={BASEMAP_STYLE} attributionControl={false} />
+      <BaseMap ref={basemap} reuseMaps mapStyle={BASEMAP_STYLE} attributionControl={false} />
     </DeckGL>
+    </div>
   );
 }

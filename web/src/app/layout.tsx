@@ -15,7 +15,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ember Command",
+  title: "FirstDue",
   description:
     "Where should BC base its wildfire trucks? Built on NASA satellite fire detections, 2019–2023.",
 };

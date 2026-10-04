@@ -22,6 +22,9 @@ interface HistoryContextValue {
   /** True once the server reports a history database; the History tab only shows then. */
   configured: boolean;
   state: LoadState;
+  /** The dates in the form. Shared by the tab and the larger view, so edits carry over both ways. */
+  range: { start: string; end: string };
+  setRange: (range: { start: string; end: string }) => void;
   /** Fetches the three history queries for a date range. */
   load: (start: string, end: string) => void;
   /** Loads the default range the first time the tab is opened. */
@@ -31,6 +34,8 @@ interface HistoryContextValue {
 const HistoryContext = createContext<HistoryContextValue>({
   configured: false,
   state: { status: "idle" },
+  range: { start: HISTORY_DEFAULT_START, end: HISTORY_DEFAULT_END },
+  setRange: () => {},
   load: () => {},
   ensureLoaded: () => {},
 });
@@ -51,6 +56,7 @@ async function fetchRows<Row>(name: string, start: string, end: string): Promise
 export function HistoryProvider({ children }: { children: React.ReactNode }) {
   const [configured, setConfigured] = useState(false);
   const [state, setState] = useState<LoadState>({ status: "idle" });
+  const [range, setRange] = useState({ start: HISTORY_DEFAULT_START, end: HISTORY_DEFAULT_END });
   const latest = useRef(0);
 
   useEffect(() => {
@@ -99,7 +105,10 @@ export function HistoryProvider({ children }: { children: React.ReactNode }) {
     if (latest.current === 0) load(HISTORY_DEFAULT_START, HISTORY_DEFAULT_END);
   }, [load]);
 
-  const value = useMemo(() => ({ configured, state, load, ensureLoaded }), [configured, state, load, ensureLoaded]);
+  const value = useMemo(
+    () => ({ configured, state, range, setRange, load, ensureLoaded }),
+    [configured, state, range, load, ensureLoaded],
+  );
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>;
 }
 

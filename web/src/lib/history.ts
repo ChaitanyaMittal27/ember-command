@@ -60,3 +60,26 @@ export const REGION_SERIES: Record<Region, 1 | 2 | 3 | 4 | 5 | 6> = {
   "Prince George": 5,
   Southeast: 6,
 };
+
+/** Detections per fire centre, largest first, with each centre's share of the total. */
+export function sortedRegionTotals(totals: Record<Region, number>): { region: Region; detections: number; share: number }[] {
+  const all = REGIONS.reduce((sum, region) => sum + totals[region], 0);
+  return REGIONS.map((region) => ({ region, detections: totals[region], share: all > 0 ? totals[region] / all : 0 })).sort(
+    (a, b) => b.detections - a.detections || a.region.localeCompare(b.region),
+  );
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A short axis label for a YYYY-MM-DD day: "Jul 1". No Date object, so no time-zone shift. */
+export function dayLabel(day: string): string {
+  const [, month, date] = day.split("-").map(Number);
+  return MONTHS[month - 1] ? `${MONTHS[month - 1]} ${date}` : day;
+}
+
+/** About `count` evenly spaced days from a series, always including the first and the last. */
+export function axisDays(days: string[], count = 7): string[] {
+  if (days.length <= count) return days;
+  const step = (days.length - 1) / (count - 1);
+  return Array.from({ length: count }, (_, index) => days[Math.round(index * step)]);
+}

@@ -18,7 +18,17 @@ import { GET as getDaily } from "@/app/api/history/daily/route";
 import { GET as getIgnitions } from "@/app/api/history/ignitions/route";
 import { GET as getStatus } from "@/app/api/history/status/route";
 import { libpqCompatible } from "@/lib/db";
-import { busiestCell, cellRadius, cellTooltip, dailySeries, regionTotals, totalDetections } from "@/lib/history";
+import {
+  axisDays,
+  busiestCell,
+  cellRadius,
+  cellTooltip,
+  dailySeries,
+  dayLabel,
+  regionTotals,
+  sortedRegionTotals,
+  totalDetections,
+} from "@/lib/history";
 import { daysBetween, validateRange } from "@/lib/historyParams";
 import { HISTORY_QUERIES, SQL_FILE_NAMES, type HistoryQueryName } from "@/lib/historyQueries";
 import type { DailyRow } from "@/lib/historyTypes";
@@ -258,5 +268,43 @@ describe("chart and map helpers", () => {
       "1,234 satellite detections\nCell 49.2_-123.1 (0.1° square)",
     );
     expect(cellTooltip({ cell_id: "x", detections: 1, frp_sum: 0, lat: 0, lon: 0 })).toContain("1 satellite detection\n");
+  });
+});
+
+describe("larger view helpers", () => {
+  it("sorts fire centres by detections, largest first, with their shares", () => {
+    const sorted = sortedRegionTotals({
+      Cariboo: 10,
+      Coastal: 0,
+      Kamloops: 60,
+      Northwest: 10,
+      "Prince George": 20,
+      Southeast: 0,
+    });
+    expect(sorted.map((row) => row.region)).toEqual(["Kamloops", "Prince George", "Cariboo", "Northwest", "Coastal", "Southeast"]);
+    expect(sorted.map((row) => row.detections)).toEqual([60, 20, 10, 10, 0, 0]);
+    expect(sorted[0].share).toBeCloseTo(0.6);
+    expect(sorted.reduce((sum, row) => sum + row.share, 0)).toBeCloseTo(1);
+  });
+
+  it("gives zero shares when nothing was detected", () => {
+    const sorted = sortedRegionTotals({ Cariboo: 0, Coastal: 0, Kamloops: 0, Northwest: 0, "Prince George": 0, Southeast: 0 });
+    expect(sorted.every((row) => row.share === 0)).toBe(true);
+  });
+
+  it("labels a day for the date axis", () => {
+    expect(dayLabel("2023-07-01")).toBe("Jul 1");
+    expect(dayLabel("2023-10-31")).toBe("Oct 31");
+    expect(dayLabel("not a day")).toBe("not a day");
+  });
+
+  it("picks evenly spaced axis days including the first and the last", () => {
+    const days = daysBetween("2023-07-01", "2023-09-30");
+    const ticks = axisDays(days, 8);
+    expect(ticks).toHaveLength(8);
+    expect(ticks[0]).toBe("2023-07-01");
+    expect(ticks[7]).toBe("2023-09-30");
+    expect(new Set(ticks).size).toBe(8);
+    expect(axisDays(["2023-07-01", "2023-07-02"], 8)).toEqual(["2023-07-01", "2023-07-02"]);
   });
 });
