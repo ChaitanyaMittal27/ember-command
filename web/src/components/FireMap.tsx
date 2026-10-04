@@ -11,12 +11,16 @@ import type { AppData } from "@/lib/data";
 import type { RegionFilter, YearFilter } from "@/lib/filters";
 import {
   BASEMAP_STYLE,
+  CANDIDATE_RADIUS_PX,
+  candidateTooltip,
   clampView,
   filterFires,
   fireOpacity,
   fireRadius,
   fireTooltip,
   INITIAL_VIEW,
+  PICKING_RADIUS_PX,
+  SELECTED_STATION_RADIUS_PX,
   showsIndustrialSources,
   staticFireTooltip,
   STATION_RADIUS_PX,
@@ -53,10 +57,30 @@ interface FireMapProps {
   stations: Candidate[];
   /** Straight-line reach of a station in km, drawn as a ring around each one. */
   reachKm: number;
+  /** The station picked up for moving (cand_id), or null. */
+  selectedStation: number | null;
+  /** Sites a selected station can move to; empty unless one is selected. */
+  candidates: Candidate[];
+  onStationClick: (candId: number) => void;
+  onCandidateClick: (candId: number) => void;
+  /** A click that hit neither a station nor a candidate site. */
+  onBackgroundClick: () => void;
 }
 
 /** The map: CARTO dark basemap under deck.gl layers. Client only (WebGL). */
-export default function FireMap({ data, tab, yearFilter, regionFilter, stations, reachKm }: FireMapProps) {
+export default function FireMap({
+  data,
+  tab,
+  yearFilter,
+  regionFilter,
+  stations,
+  reachKm,
+  selectedStation,
+  candidates,
+  onStationClick,
+  onCandidateClick,
+  onBackgroundClick,
+}: FireMapProps) {
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW);
 
   const fires = useMemo(
@@ -84,14 +108,25 @@ export default function FireMap({ data, tab, yearFilter, regionFilter, stations,
       id: "stations",
       data: stations,
       getPosition: (station) => [station.lon, station.lat],
-      getRadius: STATION_RADIUS_PX,
+      // The selected station is bigger and outlined in the fire-text colour.
+      getRadius: (station) => (station.cand_id === selectedStation ? SELECTED_STATION_RADIUS_PX : STATION_RADIUS_PX),
       radiusUnits: "pixels",
       filled: true,
       stroked: true,
       getFillColor: themeRgba("station"),
-      getLineColor: themeRgba("ink"),
+      getLineColor: (station) => themeRgba(station.cand_id === selectedStation ? "fire-text" : "ink"),
       getLineWidth: 2,
       lineWidthUnits: "pixels",
+      pickable: true,
+      updateTriggers: { getRadius: selectedStation, getLineColor: selectedStation },
+    });
+    const candidateLayer = new ScatterplotLayer<Candidate>({
+      id: "candidates",
+      data: candidates,
+      getPosition: (candidate) => [candidate.lon, candidate.lat],
+      getRadius: CANDIDATE_RADIUS_PX,
+      radiusUnits: "pixels",
+      getFillColor: themeRgba("muted", 0.5),
       pickable: true,
     });
     const fireLayer = new ScatterplotLayer<Fire>({
@@ -121,13 +156,17 @@ export default function FireMap({ data, tab, yearFilter, regionFilter, stations,
       pickable: true,
     });
     // Drawn bottom to top, in the order of the spec's layer table.
-    return [fireLayer, industrialLayer, ringLayer, stationLayer];
-  }, [data, fires, tab, stations, reachKm]);
+    return [fireLayer, industrialLayer, candidateLayer, ringLayer, stationLayer];
+  }, [data, fires, tab, stations, reachKm, selectedStation, candidates]);
 
   function getTooltip({ object, layer }: PickingInfo) {
     if (!object || !layer || !data) return null;
     let text: string;
     if (layer.id === "stations") text = stationTooltip(object as Candidate);
+    else if (layer.id === "candidates") {
+      const candidate = object as Candidate;
+      text = candidateTooltip(candidate, stations.some((station) => station.cand_id === candidate.cand_id));
+    }
     else if (layer.id === "industrial") text = staticFireTooltip(object as StaticFire);
     else text = fireTooltip(object as Fire, data.meta.settings.threshold_min);
     return { text, style: TOOLTIP_STYLE };
@@ -140,6 +179,13 @@ export default function FireMap({ data, tab, yearFilter, regionFilter, stations,
       controller={{ dragRotate: false, touchRotate: false, keyboard: true }}
       layers={layers}
       getTooltip={getTooltip}
+      pickingRadius={PICKING_RADIUS_PX}
+      onClick={({ object, layer }) => {
+        if (object && layer?.id === "stations") onStationClick((object as Candidate).cand_id);
+        else if (object && layer?.id === "candidates") onCandidateClick((object as Candidate).cand_id);
+        else onBackgroundClick();
+      }}
+      getCursor={({ isDragging, isHovering }) => (isDragging ? "grabbing" : isHovering ? "pointer" : "grab")}
     >
       <BaseMap reuseMaps mapStyle={BASEMAP_STYLE} attributionControl={false} />
     </DeckGL>

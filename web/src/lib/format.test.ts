@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { int, mins, pct, points, siteName } from "@/lib/format";
+import { int, mins, pct, points, signed, siteName } from "@/lib/format";
 
 describe("pct", () => {
   it("formats a share as a percentage with one decimal", () => {
     expect(pct(0.377)).toBe("37.7%");
     expect(pct(0.6818)).toBe("68.2%");
+  });
+
+  it("rounds exact halves up, not down", () => {
+    // toFixed alone gives "44.1%": 44.15 is stored as 44.1499999...
+    expect(pct(0.4415)).toBe("44.2%");
+    expect(pct(0.3015)).toBe("30.2%");
+    expect(pct(0.1235)).toBe("12.4%");
+    expect(pct(0.0005)).toBe("0.1%");
+    expect(pct(0.9995)).toBe("100.0%");
+    expect(pct(0.045, 0)).toBe("5%");
+    expect(pct(0.44149)).toBe("44.1%");
+    expect(pct(-0.4415)).toBe("-44.2%");
   });
 
   it("handles the ends of the range", () => {
@@ -56,6 +68,15 @@ describe("int, points and siteName", () => {
     expect(points(0.08)).toBe("0.08 pts");
     expect(points(0)).toBe("0.00 pts");
     expect(points(null)).toBe("—");
+  });
+
+  it("signed changes carry their sign, and vanish when they round to zero", () => {
+    expect(signed(1.23, "pts")).toBe("+1.2 pts");
+    expect(signed(-0.84, "pts")).toBe("−0.8 pts");
+    expect(signed(-3.26, "min")).toBe("−3.3 min");
+    expect(signed(0.04, "pts")).toBeNull();
+    expect(signed(-0.04, "pts")).toBeNull();
+    expect(signed(0, "min")).toBeNull();
   });
 
   it("falls back to a generic name by kind", () => {

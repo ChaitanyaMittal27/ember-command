@@ -50,7 +50,7 @@ export type AppAction =
   | { type: "setVariant"; variant: Q1VariantId }
   | { type: "setK"; k: number; kMax: number }
   | { type: "setTrucksPerStation"; trucks: number }
-  | { type: "setEditedLayout"; layout: number[] }
+  | { type: "setEditedLayout"; layout: number[]; selected: number | null }
   | { type: "selectStation"; candId: number | null }
   | { type: "resetEdits" }
   | { type: "setHallTruckMode"; mode: HallTruckMode }
@@ -92,7 +92,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         trucksPerStation: clamp(action.trucks, MIN_TRUCKS_PER_STATION, MAX_TRUCKS_PER_STATION),
       };
     case "setEditedLayout":
-      return { ...state, editedLayout: action.layout };
+      return { ...state, editedLayout: action.layout, selectedStation: action.selected };
     case "selectStation":
       return { ...state, selectedStation: action.candId };
     case "resetEdits":

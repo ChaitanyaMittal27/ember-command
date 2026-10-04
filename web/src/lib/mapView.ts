@@ -73,8 +73,19 @@ export function fireTooltip(fire: Fire, thresholdMin: number): string {
   return [`Fire ${fire.fire_id}`, `${fire.date} · ${fire.region}`, `Weight ${fire.weight} (early growth)`, reach].join("\n");
 }
 
-/** Station dot radius in pixels (an 11px dot). */
+/** Station dot radius in pixels (an 11px dot); the selected station is a 15px dot. */
 export const STATION_RADIUS_PX = 5.5;
+export const SELECTED_STATION_RADIUS_PX = 7.5;
+/** Candidate sites are 3px dots, shown only while a station is selected for moving. */
+export const CANDIDATE_RADIUS_PX = 3;
+/** How far, in pixels, a click may miss a dot and still count. */
+export const PICKING_RADIUS_PX = 5;
+
+/** Hover text for a candidate site while a station is being moved. */
+export function candidateTooltip(candidate: Candidate, open: boolean): string {
+  const action = open ? "Already a station" : "Click to move the station here";
+  return [stationTooltip(candidate), action].join("\n");
+}
 
 /** Hover text for a station: name, kind and fire centre. */
 export function stationTooltip(station: Candidate): string {

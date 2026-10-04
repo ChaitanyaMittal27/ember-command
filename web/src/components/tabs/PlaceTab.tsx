@@ -5,10 +5,11 @@ import { useAppState } from "@/components/AppStateProvider";
 import { CoverageChart } from "@/components/CoverageChart";
 import { RegionBars } from "@/components/RegionBars";
 import { SegmentedControl } from "@/components/SegmentedControl";
-import { StatCard } from "@/components/StatCard";
+import { StatCard, type StatDelta } from "@/components/StatCard";
+import { usePlaceLayout } from "@/components/usePlaceLayout";
 import { curvePoint } from "@/lib/curve";
 import type { AppData } from "@/lib/data";
-import { int, mins, pct } from "@/lib/format";
+import { int, mins, pct, signed, siteName } from "@/lib/format";
 import { minCurveK, validationText } from "@/lib/place";
 import { MAX_TRUCKS_PER_STATION, MIN_TRUCKS_PER_STATION, type Q1VariantId } from "@/lib/state";
 
@@ -44,13 +45,22 @@ function TrucksInput({ value, onCommit }: { value: number; onCommit: (trucks: nu
   );
 }
 
-/** Section 7.2: pick a variant and a number of stations, and see what that layout reaches. */
+/** Change of a share from the optimized value, in percentage points. More is better. */
+function shareDelta(live: number, optimized: number): StatDelta {
+  return { text: signed(100 * (live - optimized), "pts"), better: live > optimized };
+}
+
+/** Sections 7.2 and 7.3: pick a variant and a number of stations, move stations, and see what the layout reaches. */
 export function PlaceTab({ data }: { data: AppData }) {
   const { state, dispatch } = useAppState();
   const { q1, meta, evidence } = data;
   const variant = q1.variants[state.q1Variant];
   const threshold = meta.settings.threshold_min;
-  const point = curvePoint(variant.curve, state.k);
+  const optimized = curvePoint(variant.curve, state.k);
+  const { edited, live } = usePlaceLayout(data);
+  // While edited, the cards and bars show the live score; otherwise the stored curve entry.
+  const shown = live ?? optimized;
+  const selected = state.selectedStation === null ? undefined : data.candidatesById.get(state.selectedStation);
 
   return (
     <div className="flex flex-col gap-4">
@@ -82,11 +92,46 @@ export function PlaceTab({ data }: { data: AppData }) {
 
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-3 gap-2">
-          <StatCard size="md" tone="fire" value={pct(point?.coverage)} label={`fire weight within ${threshold} min`} />
-          <StatCard size="md" value={pct(point?.relative)} label="of the reachable ceiling" />
-          <StatCard size="md" value={mins(point?.mean_min)} label="average response" />
+          <StatCard
+            size="md"
+            tone="fire"
+            value={pct(shown?.coverage)}
+            label={`fire weight within ${threshold} min`}
+            delta={live && optimized ? shareDelta(live.coverage, optimized.coverage) : undefined}
+          />
+          <StatCard
+            size="md"
+            value={pct(shown?.relative)}
+            label="of the reachable ceiling"
+            delta={live && optimized ? shareDelta(live.relative, optimized.relative) : undefined}
+          />
+          <StatCard
+            size="md"
+            value={mins(shown?.mean_min)}
+            label="average response"
+            delta={
+              live && optimized
+                ? { text: signed(live.mean_min - optimized.mean_min, "min"), better: live.mean_min < optimized.mean_min }
+                : undefined
+            }
+          />
         </div>
-        <p className="text-[12px] leading-[1.5] text-muted">{validationText(evidence, state.q1Variant, state.k)}</p>
+        {edited ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[12px] leading-[1.5] text-muted">
+              Edited layout, re-scored live. Changes are against the optimized {state.k} stations.
+            </p>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "resetEdits" })}
+              className="min-h-10 cursor-pointer rounded-md border border-line-strong px-3 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station"
+            >
+              Reset to optimized
+            </button>
+          </div>
+        ) : (
+          <p className="text-[12px] leading-[1.5] text-muted">{validationText(evidence, state.q1Variant, state.k)}</p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 text-[14px]">
@@ -103,10 +148,17 @@ export function PlaceTab({ data }: { data: AppData }) {
 
       <CoverageChart curve={variant.curve} k={state.k} kMax={q1.k_max} ceiling={meta.ceiling.all_years} />
 
-      {point && <RegionBars byRegion={point.by_region} />}
+      {shown && <RegionBars byRegion={shown.by_region} />}
 
-      <p className="border-t border-line pt-3 text-[13px] text-muted">
-        Click a station, then any site on the map, to move it.
+      <p role="status" className="border-t border-line pt-3 text-[13px] text-muted">
+        {selected ? (
+          <>
+            Moving <span className="text-station-text">{siteName(selected)}</span>: click any site on the map to
+            move it there, or press Escape to cancel.
+          </>
+        ) : (
+          "Click a station, then any site on the map, to move it."
+        )}
       </p>
     </div>
   );

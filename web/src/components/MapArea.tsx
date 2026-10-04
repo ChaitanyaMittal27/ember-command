@@ -1,14 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { useData } from "@/components/DataProvider";
+import { usePlaceLayout } from "@/components/usePlaceLayout";
 import { curvePoint } from "@/lib/curve";
 import type { AppData } from "@/lib/data";
 import { int, pct } from "@/lib/format";
 import { filterFires, showsIndustrialSources } from "@/lib/mapView";
-import { q1Layout } from "@/lib/place";
+import { replaceStation } from "@/lib/edit";
 import type { AppState } from "@/lib/state";
 import type { Candidate } from "@/types/data";
 
@@ -19,7 +20,16 @@ const OVERLAY_CLASS = "absolute z-10 rounded-lg border border-line-strong bg-ove
 const NO_STATIONS: Candidate[] = [];
 
 /** The tab-dependent summary line in the "Current layout" chip. */
-function LayoutSummary({ state, data }: { state: AppState; data: AppData }) {
+function LayoutSummary({
+  state,
+  data,
+  liveCoverage,
+}: {
+  state: AppState;
+  data: AppData;
+  /** Coverage of the edited layout, while there is one. */
+  liveCoverage?: number;
+}) {
   if (state.tab === "overview") {
     return (
       <>
@@ -35,8 +45,8 @@ function LayoutSummary({ state, data }: { state: AppState; data: AppData }) {
       <>
         <span className="font-mono font-medium text-station-text">{state.k}</span>{" "}
         {state.k === 1 ? "station" : "stations"} ·{" "}
-        <span className="font-mono font-medium text-fire-text">{pct(point?.coverage)}</span> of fire weight within{" "}
-        {data.meta.settings.threshold_min} min
+        <span className="font-mono font-medium text-fire-text">{pct(liveCoverage ?? point?.coverage)}</span> of fire
+        weight within {data.meta.settings.threshold_min} min{liveCoverage === undefined ? "" : " (edited)"}
       </>
     );
   }
@@ -45,15 +55,38 @@ function LayoutSummary({ state, data }: { state: AppState; data: AppData }) {
 
 /** The map column: the map itself, plus the layout chip, legend and attribution laid over it. */
 export function MapArea() {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const data = useData();
   const industrial = showsIndustrialSources(state.tab);
+  const { layout, live } = usePlaceLayout(data);
+  const onPlaceTab = state.tab === "place";
 
-  // The stations drawn on the map: the Q1 layout at K on the Place stations tab.
+  // The stations drawn on the map: the Q1 layout at K (or the edited one) on the Place stations tab.
   const stations = useMemo(() => {
-    if (!data || state.tab !== "place") return NO_STATIONS;
-    return q1Layout(data.q1, state.q1Variant, state.k).flatMap((candId) => data.candidatesById.get(candId) ?? []);
-  }, [data, state.tab, state.q1Variant, state.k]);
+    if (!data || !onPlaceTab) return NO_STATIONS;
+    return layout.flatMap((candId) => data.candidatesById.get(candId) ?? []);
+  }, [data, onPlaceTab, layout]);
+
+  // Candidate sites only show while a station is picked up for moving.
+  const moving = onPlaceTab && state.selectedStation !== null;
+  const candidates = data && moving ? data.candidates.candidates : NO_STATIONS;
+
+  // Escape puts the station back down.
+  useEffect(() => {
+    if (!moving) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") dispatch({ type: "selectStation", candId: null });
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [moving, dispatch]);
+
+  function moveSelectedTo(candId: number) {
+    if (state.selectedStation === null) return;
+    const next = replaceStation(layout, state.selectedStation, candId);
+    // Clicking a site that is already a station does nothing.
+    if (next !== layout) dispatch({ type: "setEditedLayout", layout: next, selected: candId });
+  }
 
   const shown = data ? filterFires(data.fires.fires, state.yearFilter, state.regionFilter) : [];
   const beyond = shown.filter((fire) => !fire.reachable).length;
@@ -76,6 +109,8 @@ export function MapArea() {
       aria-label={description}
       data-fires-shown={data ? shown.length : undefined}
       data-stations-shown={data ? stations.length : undefined}
+      data-selected-station={moving ? (state.selectedStation ?? undefined) : undefined}
+      data-candidates-shown={data ? candidates.length : undefined}
       className="relative h-[60vh] min-w-0 flex-[999_1_560px] overflow-hidden bg-map wide:h-auto"
     >
       <FireMap
@@ -85,6 +120,15 @@ export function MapArea() {
         regionFilter={state.regionFilter}
         stations={stations}
         reachKm={data?.meta.settings.reach_km ?? 0}
+        selectedStation={moving ? state.selectedStation : null}
+        candidates={candidates}
+        onStationClick={(candId) => {
+          if (onPlaceTab) dispatch({ type: "selectStation", candId: candId === state.selectedStation ? null : candId });
+        }}
+        onCandidateClick={moveSelectedTo}
+        onBackgroundClick={() => {
+          if (state.selectedStation !== null) dispatch({ type: "selectStation", candId: null });
+        }}
       />
 
       {data && (
@@ -92,7 +136,7 @@ export function MapArea() {
           <div className={`${OVERLAY_CLASS} left-4 top-4 flex flex-col gap-0.5`}>
             <div className="text-[12px] uppercase tracking-[0.8px] text-muted">Current layout</div>
             <div className="text-[15px]">
-              <LayoutSummary state={state} data={data} />
+              <LayoutSummary state={state} data={data} liveCoverage={onPlaceTab ? live?.coverage : undefined} />
             </div>
           </div>
 
@@ -115,6 +159,12 @@ export function MapArea() {
               <div className="flex items-center gap-2">
                 <span className="inline-block size-1.5 rounded-full bg-neutral" />
                 Industrial heat source (excluded)
+              </div>
+            )}
+            {moving && (
+              <div className="flex items-center gap-2">
+                <span className="inline-block size-1.5 rounded-full bg-muted opacity-50" />
+                Possible site (click one to move the station there)
               </div>
             )}
           </div>
