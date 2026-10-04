@@ -4,9 +4,9 @@ import { DEFAULT_TAB, TABS, visibleTabs } from "@/lib/tabs";
 
 describe("tabs", () => {
   it("lists the six sections in order, and History only when it is available", () => {
-    expect(visibleTabs(true).map((tab) => tab.label).at(-1)).toBe("History");
-    expect(visibleTabs(true)).toHaveLength(7);
-    expect(visibleTabs(false).map((tab) => tab.label)).toEqual([
+    expect(visibleTabs(true, false).map((tab) => tab.label).at(-1)).toBe("History");
+    expect(visibleTabs(true, false)).toHaveLength(7);
+    expect(visibleTabs(false, false).map((tab) => tab.label)).toEqual([
       "Overview",
       "Place stations",
       "How many",
@@ -17,7 +17,7 @@ describe("tabs", () => {
   });
 
   it("shows short names on the tabs", () => {
-    expect(visibleTabs(true).map((tab) => tab.short)).toEqual([
+    expect(visibleTabs(true, false).map((tab) => tab.short)).toEqual([
       "Overview",
       "Place",
       "How many",

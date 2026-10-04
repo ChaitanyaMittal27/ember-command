@@ -5,6 +5,7 @@ import { useAppState } from "@/components/AppStateProvider";
 import { useDataState } from "@/components/DataProvider";
 import { useHistory } from "@/components/HistoryProvider";
 import { AboutTab } from "@/components/tabs/AboutTab";
+import { AskTab } from "@/components/tabs/AskTab";
 import { GapsTab } from "@/components/tabs/GapsTab";
 import { HallsTab } from "@/components/tabs/HallsTab";
 import { HistoryTab } from "@/components/tabs/HistoryTab";
@@ -33,6 +34,8 @@ function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
       return <AboutTab data={data} />;
     case "history":
       return <HistoryTab />;
+    case "ask":
+      return <AskTab />;
   }
 }
 
