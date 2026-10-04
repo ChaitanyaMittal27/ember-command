@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef } from "react";
-import { useAppState } from "@/components/AppStateProvider";
+import { useMemo } from "react";
 import { CoverageChart, type ChartMarker } from "@/components/CoverageChart";
 import { StatCard } from "@/components/StatCard";
+import { useRowHighlight } from "@/components/useRowHighlight";
 import { curvePoint } from "@/lib/curve";
 import type { AppData } from "@/lib/data";
 import { int, pct, siteName } from "@/lib/format";
@@ -15,11 +15,10 @@ const TD_NUMBER = "px-2 py-1.5 text-right font-mono font-medium";
 
 /** Section 7.4: the fewest stations that reach the target, and the trucks they need. */
 export function HowManyTab({ data }: { data: AppData }) {
-  const { state, dispatch } = useAppState();
   const { q2, meta } = data;
   const threshold = meta.settings.threshold_min;
   const stations = useMemo(() => sortStations(q2.stations), [q2.stations]);
-  const rows = useRef(new Map<number, HTMLTableRowElement>());
+  const { highlighted, listProps, rowProps } = useRowHighlight(stations.map((station) => station.cand_id));
   const atKStar = q2.k_star === null ? undefined : curvePoint(q2.curve, q2.k_star);
 
   const markers: ChartMarker[] = [
@@ -32,19 +31,6 @@ export function HowManyTab({ data }: { data: AppData }) {
       tone: "muted" as const,
     },
   ];
-
-  const highlight = (candId: number | null) => dispatch({ type: "hoverStation", candId });
-
-  // Arrow keys walk the station list while the scroll box has focus.
-  function onListKeyDown(event: React.KeyboardEvent) {
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    event.preventDefault();
-    const current = stations.findIndex((station) => station.cand_id === state.hoveredStation);
-    const step = event.key === "ArrowDown" ? 1 : -1;
-    const next = stations[Math.min(stations.length - 1, Math.max(0, current === -1 ? 0 : current + step))];
-    highlight(next.cand_id);
-    rows.current.get(next.cand_id)?.scrollIntoView({ block: "nearest" });
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -122,10 +108,7 @@ export function HowManyTab({ data }: { data: AppData }) {
           <div
             role="group"
             aria-labelledby="station-list-label"
-            tabIndex={0}
-            onKeyDown={onListKeyDown}
-            onMouseLeave={() => highlight(null)}
-            onBlur={() => highlight(null)}
+            {...listProps}
             className="max-h-[320px] overflow-y-auto rounded-lg border border-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station"
           >
             <table className="w-full border-collapse text-[13px]">
@@ -148,16 +131,11 @@ export function HowManyTab({ data }: { data: AppData }) {
               <tbody>
                 {stations.map((station) => {
                   const candidate = data.candidatesById.get(station.cand_id);
-                  const active = station.cand_id === state.hoveredStation;
+                  const active = station.cand_id === highlighted;
                   return (
                     <tr
                       key={station.cand_id}
-                      ref={(element) => {
-                        if (element) rows.current.set(station.cand_id, element);
-                        else rows.current.delete(station.cand_id);
-                      }}
-                      onMouseEnter={() => highlight(station.cand_id)}
-                      aria-current={active ? "true" : undefined}
+                      {...rowProps(station.cand_id)}
                       className={`border-b border-line last:border-b-0 ${active ? "bg-station-bg" : ""}`}
                     >
                       <th scope="row" className="px-2 py-1.5 text-left font-normal">

@@ -10,6 +10,7 @@ import type { AppData } from "@/lib/data";
 import { int, pct } from "@/lib/format";
 import { filterFires, showsIndustrialSources } from "@/lib/mapView";
 import { replaceStation } from "@/lib/edit";
+import { hallMarkers, nextMarkers, type HallMarker, type NextMarker } from "@/lib/halls";
 import { stationLoadNote, truckRadii } from "@/lib/howmany";
 import type { AppState } from "@/lib/state";
 import type { Candidate } from "@/types/data";
@@ -19,6 +20,8 @@ const FireMap = dynamic(() => import("@/components/FireMap"), { ssr: false });
 
 const OVERLAY_CLASS = "absolute z-10 rounded-lg border border-line-strong bg-overlay px-3.5 py-2.5";
 const NO_STATIONS: Candidate[] = [];
+const NO_HALLS: HallMarker[] = [];
+const NO_NEXT: NextMarker[] = [];
 
 /** The tab-dependent summary line in the "Current layout" chip. */
 function LayoutSummary({
@@ -60,6 +63,15 @@ function LayoutSummary({
       </>
     );
   }
+  if (state.tab === "halls") {
+    return (
+      <>
+        <span className="font-mono font-medium text-station-text">{int(data.q3.halls.length)}</span> halls ·{" "}
+        <span className="font-mono font-medium text-fire-text">{pct(data.q3.score.coverage)}</span> of fire weight
+        within {data.meta.settings.threshold_min} min
+      </>
+    );
+  }
   return <span className="text-ink-2">No layout shown yet</span>;
 }
 
@@ -71,6 +83,17 @@ export function MapArea() {
   const { layout, live } = usePlaceLayout(data);
   const onPlaceTab = state.tab === "place";
   const onHowManyTab = state.tab === "howmany";
+  const onHallsTab = state.tab === "halls";
+
+  // On Existing halls: every hall as a square sized by trucks, plus the next stations to add.
+  const halls = useMemo(
+    () => (data && onHallsTab ? hallMarkers(data.q3, data.candidatesById, state.hallTruckMode) : NO_HALLS),
+    [data, onHallsTab, state.hallTruckMode],
+  );
+  const nextStations = useMemo(
+    () => (data && onHallsTab ? nextMarkers(data.q3, data.candidatesById) : NO_NEXT),
+    [data, onHallsTab],
+  );
 
   // The stations drawn on the map: the Q1 layout at K (or the edited one) on Place stations,
   // and the Q2 layout at k_star on How many.
@@ -123,6 +146,10 @@ export function MapArea() {
         ? ` ${stations.length === 1 ? "1 station is" : `${stations.length} stations are`} shown as blue dots` +
           `${onHowManyTab ? " sized by their trucks" : ""}, each with a ring for its ${threshold}-minute reach.`
         : "") +
+      (halls.length
+        ? ` ${int(halls.length)} existing fire halls are shown as blue squares sized by their trucks, and the next ` +
+          `${nextStations.length} stations to add as numbered blue circles.`
+        : "") +
       (industrial ? ` Grey dots mark ${int(data.staticFires.fires.length)} excluded industrial heat sources.` : "")
     : "Map of British Columbia. The fire data is still loading.";
 
@@ -132,7 +159,10 @@ export function MapArea() {
       data-fires-shown={data ? shown.length : undefined}
       data-stations-shown={data ? stations.length : undefined}
       data-selected-station={moving ? (state.selectedStation ?? undefined) : undefined}
-      data-highlighted-station={onHowManyTab ? (state.hoveredStation ?? undefined) : undefined}
+      data-highlighted-station={onHowManyTab || onHallsTab ? (state.hoveredStation ?? undefined) : undefined}
+      data-halls-shown={data ? halls.length : undefined}
+      data-hall-sizes={halls.length ? [...new Set(halls.map((hall) => hall.size))].sort((a, b) => a - b).join(",") : undefined}
+      data-next-shown={data ? nextStations.length : undefined}
       data-candidates-shown={data ? candidates.length : undefined}
       className="relative h-[60vh] min-w-0 flex-[999_1_560px] overflow-hidden bg-map wide:h-auto"
     >
@@ -146,6 +176,9 @@ export function MapArea() {
         stationRadii={truckSizing?.radii}
         stationNotes={truckSizing?.notes}
         selectedStation={moving ? state.selectedStation : onHowManyTab ? state.hoveredStation : null}
+        halls={halls}
+        nextStations={nextStations}
+        highlightedNext={onHallsTab ? state.hoveredStation : null}
         candidates={candidates}
         onStationClick={(candId) => {
           if (onPlaceTab) dispatch({ type: "selectStation", candId: candId === state.selectedStation ? null : candId });
@@ -179,6 +212,18 @@ export function MapArea() {
                 <span className="inline-block size-2.5 rounded-full border-2 border-ink bg-station" />
                 Station{onHowManyTab ? " (size = trucks)" : ""}, ring = {threshold}-minute reach
               </div>
+            )}
+            {halls.length > 0 && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block size-2.5 bg-station" />
+                  Existing fire hall (size = trucks)
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block size-3 rounded-full border-2 border-station" />
+                  Next station to add (numbered by rank)
+                </div>
+              </>
             )}
             {industrial && (
               <div className="flex items-center gap-2">

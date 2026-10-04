@@ -9,6 +9,7 @@ export type ColorToken =
   | "neutral"
   | "muted"
   | "ink"
+  | "map"
   | "line-strong";
 
 export type Rgb = [number, number, number];

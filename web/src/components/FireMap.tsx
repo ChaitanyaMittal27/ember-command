@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { DeckGL } from "@deck.gl/react";
-import { ScatterplotLayer } from "@deck.gl/layers";
+import { IconLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
 import { setWorkerUrl } from "maplibre-gl";
 import { Map as BaseMap } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { AppData } from "@/lib/data";
 import type { RegionFilter, YearFilter } from "@/lib/filters";
+import type { HallMarker, NextMarker } from "@/lib/halls";
 import {
   BASEMAP_STYLE,
   CANDIDATE_RADIUS_PX,
@@ -34,6 +35,24 @@ import type { Candidate, Fire, StaticFire } from "@/types/data";
 // The bundler does not emit MapLibre's worker file, so it is served from public/maplibre/
 // (copied there by scripts/copy-maplibre-worker.mjs before dev and build).
 setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+
+/** A white square used as a tintable icon, so halls can be drawn as squares. */
+let squareIcon: string | null = null;
+function squareIconUrl(): string {
+  if (!squareIcon) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 32;
+    const context = canvas.getContext("2d");
+    if (context) {
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, 32, 32);
+    }
+    squareIcon = canvas.toDataURL();
+  }
+  return squareIcon;
+}
+const SQUARE_ICON = { x: 0, y: 0, width: 32, height: 32, mask: true };
+const NEXT_STATION_RADIUS_PX = 6;
 
 const TOOLTIP_STYLE = {
   backgroundColor: "var(--color-overlay)",
@@ -63,6 +82,12 @@ interface FireMapProps {
   stationNotes?: Map<number, string>;
   /** The station picked up for moving or highlighted from a list (cand_id), or null. */
   selectedStation: number | null;
+  /** Existing fire halls, drawn as squares sized by trucks. */
+  halls: HallMarker[];
+  /** The next stations to add to the halls, drawn as numbered hollow circles. */
+  nextStations: NextMarker[];
+  /** The next station highlighted from its list (cand_id), or null. */
+  highlightedNext: number | null;
   /** Sites a selected station can move to; empty unless one is selected. */
   candidates: Candidate[];
   onStationClick: (candId: number) => void;
@@ -82,6 +107,9 @@ export default function FireMap({
   stationRadii,
   stationNotes,
   selectedStation,
+  halls,
+  nextStations,
+  highlightedNext,
   candidates,
   onStationClick,
   onCandidateClick,
@@ -164,14 +192,60 @@ export default function FireMap({
       getFillColor: themeRgba("neutral"),
       pickable: true,
     });
+    const hallLayer = new IconLayer<HallMarker>({
+      id: "halls",
+      data: halls,
+      iconAtlas: squareIconUrl(),
+      iconMapping: { square: SQUARE_ICON },
+      getIcon: () => "square",
+      getPosition: (hall) => [hall.candidate.lon, hall.candidate.lat],
+      getSize: (hall) => hall.size,
+      sizeUnits: "pixels",
+      getColor: themeRgba("station"),
+      pickable: true,
+      updateTriggers: { getSize: halls },
+    });
+    const nextLayer = new ScatterplotLayer<NextMarker>({
+      id: "next-stations",
+      data: nextStations,
+      getPosition: (next) => [next.candidate.lon, next.candidate.lat],
+      getRadius: (next) => NEXT_STATION_RADIUS_PX + (next.candidate.cand_id === highlightedNext ? 3 : 0),
+      radiusUnits: "pixels",
+      // Hollow, with a barely visible fill so the whole circle can be hovered.
+      filled: true,
+      stroked: true,
+      getFillColor: themeRgba("station", 0.02),
+      getLineColor: (next) => themeRgba(next.candidate.cand_id === highlightedNext ? "fire-text" : "station"),
+      getLineWidth: 2,
+      lineWidthUnits: "pixels",
+      pickable: true,
+      updateTriggers: { getRadius: highlightedNext, getLineColor: highlightedNext },
+    });
+    const rankLayer = new TextLayer<NextMarker>({
+      id: "next-ranks",
+      data: nextStations,
+      getPosition: (next) => [next.candidate.lon, next.candidate.lat],
+      getText: (next) => String(next.rank),
+      getSize: 11,
+      sizeUnits: "pixels",
+      getPixelOffset: [0, -15],
+      getColor: themeRgba("ink"),
+      fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-plex-mono") || "monospace",
+      fontWeight: 500,
+      characterSet: "0123456789",
+      fontSettings: { sdf: true },
+      outlineWidth: 3,
+      outlineColor: themeRgba("map"),
+    });
     // Drawn bottom to top, in the order of the spec's layer table.
-    return [fireLayer, industrialLayer, candidateLayer, ringLayer, stationLayer];
-  }, [data, fires, tab, stations, reachKm, stationRadii, selectedStation, candidates]);
+    return [fireLayer, industrialLayer, candidateLayer, ringLayer, stationLayer, hallLayer, nextLayer, rankLayer];
+  }, [data, fires, tab, stations, reachKm, stationRadii, selectedStation, candidates, halls, nextStations, highlightedNext]);
 
   function getTooltip({ object, layer }: PickingInfo) {
     if (!object || !layer || !data) return null;
     let text: string;
-    if (layer.id === "stations") {
+    if (layer.id === "halls" || layer.id === "next-stations") text = (object as HallMarker | NextMarker).tooltip;
+    else if (layer.id === "stations") {
       const station = object as Candidate;
       text = stationTooltip(station, stationNotes?.get(station.cand_id));
     }
