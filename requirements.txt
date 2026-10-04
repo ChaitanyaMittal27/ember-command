@@ -10,4 +10,3 @@ papermill
 spopt
 pulp>=3.2,<4
 highspy
-pyrosm
