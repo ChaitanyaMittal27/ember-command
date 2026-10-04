@@ -218,3 +218,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# learning-docs
+learning-docs/
+
+# agents
+AGENTS.md
+
+# Project data and web build output
+data/raw/*
+!data/raw/.gitkeep
+data/processed/
+node_modules/
+.next/
