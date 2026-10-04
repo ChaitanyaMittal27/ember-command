@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Design tokens from FRONTEND_SPEC.md section 2. Use these names, not raw hex values. */
+@theme {
+  --color-ground: #0e1318;
+  --color-map: #0b1015;
+  --color-panel: #121920;
+  --color-card: #18212a;
+  --color-field: #161d24;
+  --color-line: #222b34;
+  --color-line-strong: #2c3640;
+  --color-ink: #e9e6e0;
+  --color-ink-2: #c9cfd5;
+  --color-muted: #a3adb7;
+  --color-faint: #7e8994;
+  --color-fire: #f08a24;
+  --color-fire-text: #f2a65a;
+  --color-station: #5aa9e6;
+  --color-station-text: #7dbbea;
+  --color-station-bg: #1d3447;
+  --color-neutral: #6b7682;
+  --color-overlay: rgba(22, 29, 36, 0.92);
+  --color-ring-fill: rgba(90, 169, 230, 0.1);
+  --color-ring-stroke: rgba(90, 169, 230, 0.55);
+
+  /* Below this width the map (560px) and the panel (400px) no longer fit side by side. */
+  --breakpoint-wide: 960px;
+}
+
+@theme inline {
+  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+a {
+  color: var(--color-station-text);
+}
+
+input[type="range"] {
+  accent-color: var(--color-station);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
