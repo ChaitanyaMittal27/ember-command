@@ -53,8 +53,9 @@ export function AboutTab({ data }: { data: AppData }) {
       <DataAndLimits data={data} />
 
       <LargerViewDialog {...dialogProps} title="About FirstDue" titleId="about-dialog-title">
-        {/* Evidence on the left and data and limits on the right from 1200px; one column below that. */}
-        <div className="grid gap-8 min-[1200px]:grid-cols-2 [&>*]:min-w-0">
+        {/* Evidence on the left and data and limits on the right from 1200px; one column below that.
+            On a phone the table cells are tighter, so the widest table fits without a sideways scroll. */}
+        <div className="grid gap-8 min-[1200px]:grid-cols-2 [&>*]:min-w-0 max-sm:[&_td]:px-1 max-sm:[&_th]:px-1">
           <EvidenceSection data={data} />
           <DataAndLimits data={data} />
         </div>

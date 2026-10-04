@@ -1,4 +1,4 @@
-# Ember Command: frontend spec
+# FirstDue: frontend spec
 
 Build the web app in `web/` exactly to this spec. Data comes **only** from the JSON files in
 `web/public/data/`, defined by `notebooks/data-contract.md` and typed in `web/src/types/data.ts`.
@@ -7,6 +7,10 @@ live re-scoring in the drag-a-station feature, using `scoreLayout` from `data.ts
 
 Work in the numbered steps of section 9, one step per session, and pass every verification gate
 before reporting a step done. Ask before deviating from this spec or the contract.
+
+The app's user-facing name is **FirstDue** (code identifiers, folders and the repo keep their names).
+Sections 2, 5, 6 and 7 describe the app as built after the two UI-update passes that followed F11;
+section 9 is the original build history.
 
 ---
 
@@ -26,7 +30,7 @@ before reporting a step done. Ask before deviating from this spec or the contrac
 The map uses WebGL and `window`, so the map component is a client component loaded with
 `next/dynamic(..., { ssr: false })`.
 
-No other runtime dependencies without asking.
+No other runtime dependencies without asking. Added since, with approval: `pg` (History tab).
 
 ---
 
@@ -57,7 +61,7 @@ the monospace font. No gradients, no emoji, no drop-shadow cards, no left-border
 | `station-bg` | `#1D3447` | selected tab and segment background |
 | `neutral` | `#6B7682` | industrial heat sources, baseline bars |
 
-Ring fill `rgba(90,169,230,0.10)`, ring stroke `rgba(90,169,230,0.55)`.
+Ring fill `rgba(90,169,230,0.10)`, ring stroke `rgba(90,169,230,0.55)`. On the Gaps tab only: fill 4%, stroke 30%.
 
 ### Type
 
@@ -67,7 +71,7 @@ Ring fill `rgba(90,169,230,0.10)`, ring stroke `rgba(90,169,230,0.55)`.
 ### Components
 
 - **Stat card:** `card` background, radius 8px, padding 10–12px, big mono number on top, `muted` 12px label below.
-- **Tab button:** min-height 36px, radius 6px, 1px `line-strong` border; selected = `station` border + `station-bg` fill + `ink` text.
+- **Tab button:** min-height 36px, radius 6px, 1px `line-strong` border, 12px text, 6px horizontal padding, 4px gap; selected = `station` border + `station-bg` fill + `ink` text. The button shows the tab's short label; the full name is its `aria-label` and tooltip.
 - **Segmented control:** `card` track with 4px padding; selected segment = `station-bg` fill + 1px `station` outline.
 - **Horizontal bar:** `card` track, radius 4px, height 10–12px, fill `fire` (or `station`/`neutral` where noted), value in mono at the right.
 - **Inputs/selects:** `field` background, `line-strong` border, radius 6px, min-height 40px.
@@ -75,14 +79,24 @@ Ring fill `rgba(90,169,230,0.10)`, ring stroke `rgba(90,169,230,0.55)`.
 
 ### Layout
 
-- **Header** (`ground`, bottom border `line`): left: "Ember Command" (20px/600) with the subtitle
-  "Where should BC base its wildfire trucks? Built on NASA satellite fire detections, 2019–2023." (13px `muted`).
+- **Header** (`ground`, bottom border `line`): one row, 56px tall. Left: "FirstDue" (20px/600), no subtitle.
   Right: two selects, "Fires shown" (All years, 2019…2023) and "Fire centre" (All of BC + the six regions).
-- **Body:** a wrapping flex row. Map: `flex: 999 1 560px; min-width: 0`. Side panel: `flex: 1 1 400px; max-width: 460px; min-width: 320px`, `panel` background, left border `line`, scrolls internally.
-  On narrow screens the panel stacks under the map (map height 60vh there).
+  While a filter is active, the filter note (section 5) sits on the same row left of the selects: the sentence from
+  1100px wide, an info icon carrying it as tooltip and `aria-label` below that. It never adds height.
+- **Body:** from 960px wide, the map fills the space left of the side panel. The panel (`panel` background, left
+  border `line`, scrolls internally) is **480px by default and resizable** between 320px and 60% of the window:
+  an 8px drag handle on its left edge (`role="separator"`, 2px `station` line on hover, focus and drag; arrow keys
+  move it 40px), and an icon button at the end of the tab row toggling between the current width and 60%
+  ("Expand panel" / "Restore panel width"). The width is remembered in `localStorage` (`firstdue.panelWidth`),
+  falling back to 480px. The map resizes live (ResizeObserver → MapLibre `resize()`).
+  Below 960px the panel stacks under the map (map height 60vh there), with no handle or button.
 - **Map overlays** (`rgba(22,29,36,0.92)` background, 1px `line-strong` border, radius 8px):
   top-left "Current layout" chip (tab-dependent summary line); bottom-left legend; bottom-right map attribution (MapLibre's control is fine).
-- **Panel:** tab row at the top (wrapping), then the active tab's content with 18–20px padding and 16–18px gaps.
+- **Panel:** tab row at the top, then the active tab's content with 18–20px padding and 16–18px gaps.
+  At the default 480px width all tabs and the expand button fit on one row; narrower panels may wrap.
+- **Larger view dialog** (`LargerViewDialog`, shared by History and About): a modal `<dialog>` about 90% × 85% of
+  the window on the `panel` background, with a title, a close button and Escape to close. Focus moves to the
+  close button on open, is trapped while open, and returns to the "Open larger view" button on close.
 
 ---
 
@@ -109,7 +123,7 @@ Keep in one small React context or `useReducer` (no state library):
 `selectedStation` (cand_id | null), `hallTruckMode` ("need" | "2x"), `gapThreshold` (30 | 60 | 90), `evidenceK` (10 | 20 | 40).
 
 **Filters only change what the map draws.** Every number in the panel is the all-years, all-BC result from the JSON.
-Show a one-line note under the header selects when a filter is active: "Filters change the map only; scores cover all of BC, 2019–2023."
+While a filter is active, show the note "Filters change the map only; scores cover all of BC, 2019–2023." in the header row (see Layout).
 
 ---
 
@@ -119,10 +133,11 @@ Initial view: longitude −125.0, latitude 54.5, zoom 4.6, pitch 0. Max bounds r
 
 | Layer | Source | Look |
 |---|---|---|
-| Fires | `fires.json`, filtered by year/region | ScatterplotLayer. Radius in pixels `2 + weight / 4`. Reachable: filled `fire` at 85% opacity. Unreachable: no fill, 1.5px `fire` stroke. |
-| Industrial sources | `static_fires.json` | 3px squares or circles in `neutral`. Hidden on the Evidence and About tabs. |
+| Fires | `fires.json`, filtered by year/region | ScatterplotLayer, `radiusUnits: "meters"`, radius `700 + weight × 120` m, `radiusMinPixels: 1`, `radiusMaxPixels: 6`, so dots grow with zoom. Reachable: filled `fire`. Unreachable: no fill, 1px `fire` stroke. Opacity per tab below. |
+| Industrial sources | `static_fires.json` | 3px squares or circles in `neutral`. Hidden on the About and History tabs. |
 | Candidates | `candidates.json` | 3px `muted` dots at 50% opacity. Only visible while a station is selected for moving. Pickable then. |
-| Rings | current layout | ScatterplotLayer, `radiusUnits: "meters"`, radius `reach_km × 1000` (from `meta.settings` or `gaps.thresholds` on the Gaps tab), ring fill and stroke from section 2. |
+| Rings | current layout | ScatterplotLayer, `radiusUnits: "meters"`, radius `reach_km × 1000` (from `meta.settings` or `gaps.thresholds` on the Gaps tab), ring fill and stroke from section 2 (lighter on Gaps). |
+| Heat | History tab | One dot per 0.1° cell from `/api/history/cells`, `fire` at 60% opacity, 1.5–16px with area tracking the detections. Replaces the fire dots on History. |
 | Stations | current layout | 11px `station` dot with 2px `ink` outline. Selected station: 15px with `fire-text` outline. Pickable. |
 | Halls | Q3 tab | 8px squares in `station`; size scales with trucks in the chosen truck mode (8–16px). |
 | Next stations | Q3 tab | 12px hollow `station` circles with a rank label (TextLayer, mono, 11px). |
@@ -131,20 +146,25 @@ Hover tooltips (deck.gl `getTooltip`): fire → id, date, weight, nearest minute
 
 What each tab draws:
 
-| Tab | Layout shown | Fires |
+| Tab | Layout shown | Fires (reachable / unreachable opacity) |
 |---|---|---|
-| Overview | none | all (filtered) |
-| Place stations | Q1 layout at K (or the edited layout) | all |
-| How many | Q2 layout at `k_star`, station size scaled by trucks (11–19px) | all |
-| Existing halls | halls + next 20 | all |
-| Gaps | **every candidate**, rings at the chosen threshold | unreachable fires full opacity, reachable at 25% |
-| Evidence, About | none | all at 50% opacity |
+| Overview | none | all (filtered), 85% / 100% |
+| Place stations | Q1 layout at K (or the edited layout) | all, dimmed to 40% / 55% so stations and rings stand out |
+| How many | Q2 layout at `k_star`, station size scaled by trucks (11–19px) | all, 40% / 55% |
+| Existing halls | halls + next 20 | all, 40% / 55% |
+| Gaps | **every candidate**, rings at the 60-minute reach | 25% / 100% |
+| About | none | all at 50% |
+| History | none | none; the heat layer instead |
+| Ask | none | as Overview |
 
 ---
 
 ## 7. Tabs
 
-Tab order and labels: **Overview · Place stations · How many · Existing halls · Gaps · Evidence · About**. The default tab is Place stations.
+Tab order, with the short label shown on the button in brackets where it differs: **Overview · Place stations (Place) ·
+How many · Existing halls (Halls) · Gaps · About · History · Ask about the results (Ask)**. The default tab is Place stations.
+History appears only when the history database is configured. The former Evidence tab is now the first part of About.
+Ask is planned (section 7.10) and not built yet.
 
 ### 7.1 Overview
 - Heading "What this answers" and the paragraph: "Five years of satellite fire detections, grouped into {meta.counts.fires} fires. {meta.counts.candidates} possible sites: every town and existing fire hall. For any number of stations, the tool finds where they reach the most fires within an hour by road."
@@ -155,7 +175,7 @@ Tab order and labels: **Overview · Place stations · How many · Existing halls
 - Segmented control: "Fastest response" (`capped_pmedian`) / "Fair: one per fire centre" (`fair`). Switching to fair with K < 6 sets K to 6.
 - Slider "Number of stations", K from 1 (fair: 6) to `q1.k_max`, step 1, with "K = {k}" in mono. Keyboard accessible.
 - Three stat cards from `curvePoint(variant.curve, k)` (or the live score when edited): coverage ("fire weight within 60 min"), relative ("of the reachable ceiling"), mean_min ("average response").
-- **Validation line** (small, `muted`): if the variant is `capped_pmedian` and K ∈ {10, 20, 40, 60}, show "Chosen on 2019–2022 fires, this layout reached {test_relative} of the 2023 ceiling." from `evidence.q1_variants`. Otherwise: "Tested on unseen 2023 fires at K = 10, 20, 40 and 60 (see Evidence)."
+- **Validation line** (small, `muted`): if the variant is `capped_pmedian` and K ∈ {10, 20, 40, 60}, show "Chosen on 2019–2022 fires, this layout reached {test_relative} of the 2023 ceiling." from `evidence.q1_variants`. Otherwise: "Tested on unseen 2023 fires at K = 10, 20, 40 and 60 (see About)."
 - Trucks: number input "Trucks per station" (1–10) and "= {k × trucks} trucks in total".
 - Coverage chart (Recharts line, height about 140px): x = K over the variant's curve, y = coverage; dashed reference line at `meta.ceiling.all_years` labelled "ceiling, every site open"; a dot at the current K.
 - Per-region bars at the current K: for each region, `by_region[region].relative` (share of that region's own ceiling), with coverage in a tooltip or second column.
@@ -190,27 +210,46 @@ Tab order and labels: **Overview · Place stations · How many · Existing halls
 
 ### 7.6 Gaps
 - Heading "Where trucks can't reach" and the paragraph: "{overall unreachable share} of fire weight is more than {threshold} minutes by road from every town and fire hall in BC. Prince George holds most of it. This is air-attack territory." (Use the region with the most unreachable fires from `by_region`, not a hardcoded name.)
-- Threshold segmented control 30 / 60 / 90 minutes. It changes the ring radius on the map (`reach_km`) and highlights the matching ceiling card. Note: unreachable fires on the map are defined at 60 minutes (`reachable` in `fires.json`); say so in a `faint` footnote.
+- (Built as a static panel, with no threshold control: the rings are always the 60-minute reach and the 60-minute card is highlighted.) A `faint` footnote says the hollow fires are those beyond 60 minutes of every site.
 - Three cards from `gaps.thresholds`: ceiling at each threshold ("reachable in {t} min").
 - Region table: region, fires, unreachable fires, unreachable weight share.
 - Map chip: "Every site open · {threshold}-minute reach".
 
-### 7.7 Evidence
+### 7.7 About, part 1: evidence (formerly the Evidence tab)
+The About tab starts with an "Open larger view" button, then this section, then section 7.8.
 - Heading "Does it work on fires it never saw?" and: "Stations chosen from 2019–2022 fires, scored on 2023."
-- K segmented control 10 / 20 / 40. Bar chart (horizontal bars) of `test_relative` for that K: capped p-median and greedy coverage in `station`; random best, random median and most populous towns in `neutral`. Labels: "Our layout", "Coverage-first layout", "Best of 1,000 random", "Typical random", "Biggest towns".
+- (Built as a static panel at K = 20, with no K control.) Bar chart (horizontal bars) of `test_relative` for that K: capped p-median and greedy coverage in `station`; random best, random median and most populous towns in `neutral`. Labels: "Our layout", "Coverage-first layout", "Best of 1,000 random", "Typical random", "Biggest towns".
 - Line under the chart: "Ours beat {beats_random_coverage_share} of 1,000 random layouts." Then: "Placing stations in the biggest towns does worse than random: they cluster in the southwest, away from the fires."
 - Leave-one-year-out table: held-out year, coverage, ceiling, relative; plus "Site overlap between folds: {mean_jaccard} (sites change, but stations per fire centre stay stable)" and the region-stability table (region, per-fold counts, mean, std).
 - "Is greedy close to optimal?" table from `exact_check.coverage`: K, greedy, exact, gap in points; plus the p-median status note.
 - Fairness table, weight sensitivity line, overload line ("In 2023, {overloaded_share} of station-days had more fires than trucks; the worst station peaked at {peak_active} fires against {trucks} trucks.").
 
-### 7.8 About
+### 7.8 About, part 2: data and limits
 - "Data and limits" with these paragraphs (plain text):
+  - Where should BC base its wildfire trucks? Built on NASA satellite fire detections, 2019–2023. (The former header subtitle.)
   - Fires: NASA FIRMS VIIRS 375 m active-fire detections (S-NPP; a 2022 outage filled from NOAA-20), grouped into fires. Industrial heat sources removed.
   - Sites: OpenStreetMap towns and fire halls (© OpenStreetMap contributors).
   - Travel time: straight-line distance × {detour} at {speed_kmh} km/h plus {dispatch_min} minutes to roll out. Remote areas look closer than they are by road.
   - Fire halls are mostly municipal, not BC Wildfire Service bases. A fire counts as active for up to 14 days after detection.
   - Method: facility location (greedy p-median and maximal coverage), validated on a held-out year.
 - Settings values come from `meta.settings`.
+- **Larger view:** the button opens the shared dialog titled "About FirstDue" with the same content in two columns
+  from 1200px wide (evidence left, data and limits right) and one column below that.
+
+### 7.9 History (built in F11)
+- Heading "Fire history", two date inputs (2019-05-01 to 2023-10-31, at most 184 days, default 2023-07-01 to
+  2023-09-30), Load, and "Open larger view". The dates are shared state between the tab and the dialog.
+- Two stat cards (satellite detections, ignitions), a daily-detections chart with one line per fire centre and
+  the per-centre totals under it, and the note "Live from Tiger Data (TimescaleDB): 538,508 detections, daily
+  continuous aggregates."
+- **Larger view:** the shared dialog titled "Fire history" with the same form, the chart at full width and about
+  48% of the dialog height with a date axis and a legend, the two cards, and a table of detections per fire centre
+  sorted largest first with shares. It fits without scrolling at 1440×900 and never refetches on open.
+- Map chip: "{detections} satellite detections · {start} to {end}".
+
+### 7.10 Ask (planned)
+An eighth tab, short label "Ask", full name "Ask about the results": plain-English questions answered by Gemini from
+FirstDue's computed results only, through a server-side route handler. To be specified here once built.
 
 ---
 
@@ -253,7 +292,7 @@ Manual: the layout matches section 2 at desktop width and stacks on a narrow win
 
 **F8. Gaps.** Section 7.6. Manual: the threshold switch resizes every ring; unreachable fires stand out.
 
-**F9. Evidence and About.** Sections 7.7 and 7.8. Manual: every number matches `evidence.json` and `meta.json`.
+**F9. Evidence and About.** Sections 7.7 and 7.8. Manual: every number matches `evidence.json` and `meta.json`. (Evidence was later merged into About.)
 
 **F10. Polish.** Responsive check at 1440, 1024 and 390px; keyboard pass; reduced motion; empty and error states; page `<title>` and description; favicon (simple orange dot). Add a `web/README.md` with setup, `npm run dev`, how to refresh data (re-run notebook 06a), and Vercel deploy steps (root directory `web`).
 
