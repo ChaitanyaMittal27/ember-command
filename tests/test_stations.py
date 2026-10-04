@@ -212,6 +212,29 @@ def test_trucks_per_station_matches_hand_count():
     assert st.trucks_per_station(demand, assignment, percentile=50).to_dict() == {5: 1, 7: 1}  # minimum 1
 
 
+def test_trucks_per_station_busy_days_only():
+    demand = pd.DataFrame({
+        "first_date": pd.to_datetime(["2021-06-01", "2021-06-02", "2021-06-03", "2021-06-10"]),
+        "active_days_capped": [3, 2, 1, 1],
+    })
+    # Station 5 is busy on three days with 1, 2, 3 fires: 90th percentile of [1, 2, 3] = 2.8 -> 3 trucks.
+    # Station 7 is busy on one day with 1 fire: 1 truck.
+    assert st.trucks_per_station(demand, [5, 5, 5, 7], busy_days_only=True).to_dict() == {5: 3, 7: 1}
+
+
+def test_trucks_per_station_modes_differ():
+    demand = pd.DataFrame({
+        "first_date": pd.to_datetime(["2021-06-01", "2021-06-01", "2021-06-10"]),
+        "active_days_capped": [1, 1, 1],
+    })
+    assignment = [1, 1, 2]
+    # Season: Jun 1 - Jun 10 (10 days). Station 1 has 2 fires on Jun 1 and none on the other 9 days.
+    # Every season day: 90th percentile of [0]*9 + [2] = 0.2 -> rounds up to 1 truck.
+    # Busy days only:   90th percentile of [2] = 2 -> 2 trucks.
+    assert st.trucks_per_station(demand, assignment).to_dict() == {1: 1, 2: 1}
+    assert st.trucks_per_station(demand, assignment, busy_days_only=True).to_dict() == {1: 2, 2: 1}
+
+
 def test_trucks_per_station_seasons_are_per_year():
     demand = pd.DataFrame({
         "first_date": pd.to_datetime(["2021-06-01", "2021-06-01", "2022-06-01", "2022-06-01"]),

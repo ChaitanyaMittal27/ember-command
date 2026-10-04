@@ -328,7 +328,7 @@ def find_elbow(curve):
 
 # ---------------------------------------------------------------- trucks
 
-def trucks_per_station(demand, assignment, percentile=90):
+def trucks_per_station(demand, assignment, percentile=90, busy_days_only=False):
     """Trucks needed at each station, from how many of its fires burn at the same time.
 
     A fire is active from first_date through first_date + active_days_capped - 1.
@@ -336,6 +336,9 @@ def trucks_per_station(demand, assignment, percentile=90):
     as zero), take the given percentile of those daily counts, round up, with a minimum of 1.
     The season of each year runs from that year's earliest first_date to its latest active day
     across all of `demand`, so every station is measured over the same days.
+
+    With busy_days_only=True the percentile is taken over only the days on which that station
+    has at least one active fire, instead of every season day.
 
     Returns a Series of trucks indexed by station (cand_id), sorted.
     """
@@ -357,6 +360,8 @@ def trucks_per_station(demand, assignment, percentile=90):
         mine = assignment == station
         active = ((first[mine][None, :] <= season_days[:, None])
                   & (season_days[:, None] <= last[mine][None, :])).sum(axis=1)
+        if busy_days_only:
+            active = active[active > 0]
         trucks[int(station)] = max(1, math.ceil(np.percentile(active, percentile)))
     return pd.Series(trucks, name="trucks", dtype=int).rename_axis("station")
 
