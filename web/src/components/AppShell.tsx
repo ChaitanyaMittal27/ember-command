@@ -13,7 +13,7 @@ export function AppShell() {
       <AppStateProvider>
         <div className="flex min-h-dvh flex-col bg-ground text-ink wide:h-dvh">
           <Header />
-          <div className="flex flex-1 flex-wrap content-start wide:min-h-0 wide:content-stretch">
+          <div className="flex flex-1 flex-wrap content-start wide:min-h-0 wide:flex-nowrap">
             <MapArea />
             <SidePanel />
           </div>

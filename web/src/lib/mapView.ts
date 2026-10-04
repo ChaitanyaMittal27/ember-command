@@ -1,8 +1,8 @@
 // Map camera settings and the pure helpers behind the map (FRONTEND_SPEC.md section 6).
 
-import type { Fire, StaticFire } from "@/types/data";
+import type { Candidate, Fire, StaticFire } from "@/types/data";
 import type { RegionFilter, YearFilter } from "@/lib/filters";
-import { mins } from "@/lib/format";
+import { mins, siteName } from "@/lib/format";
 import type { TabId } from "@/lib/tabs";
 
 export const BASEMAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -71,6 +71,15 @@ export function fireTooltip(fire: Fire, thresholdMin: number): string {
     ? `${mins(fire.nearest_min)} from the nearest possible site`
     : `Beyond ${thresholdMin} min of every site (nearest: ${mins(fire.nearest_min)})`;
   return [`Fire ${fire.fire_id}`, `${fire.date} · ${fire.region}`, `Weight ${fire.weight} (early growth)`, reach].join("\n");
+}
+
+/** Station dot radius in pixels (an 11px dot). */
+export const STATION_RADIUS_PX = 5.5;
+
+/** Hover text for a station: name, kind and fire centre. */
+export function stationTooltip(station: Candidate): string {
+  const kind = station.kind === "hall" ? "Existing fire hall" : "Town";
+  return [siteName(station), `${kind} · ${station.region} fire centre`].join("\n");
 }
 
 /** Hover text for an excluded industrial heat source. */

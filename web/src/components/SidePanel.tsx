@@ -4,12 +4,14 @@ import { useRef } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { useDataState } from "@/components/DataProvider";
 import { OverviewTab } from "@/components/tabs/OverviewTab";
+import { PlaceTab } from "@/components/tabs/PlaceTab";
 import type { AppData } from "@/lib/data";
 import { TABS, type TabId } from "@/lib/tabs";
 
-/** The active tab's content. Tabs other than Overview are built in later steps. */
+/** The active tab's content. Tabs without a component yet are built in later steps. */
 function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
   if (tab === "overview") return <OverviewTab data={data} />;
+  if (tab === "place") return <PlaceTab data={data} />;
   const active = TABS.find((item) => item.id === tab) ?? TABS[0];
   return (
     <>
@@ -41,7 +43,7 @@ export function SidePanel() {
   }
 
   return (
-    <aside className="flex min-w-[320px] max-w-none flex-[1_1_400px] flex-col border-t border-line bg-panel wide:max-w-[460px] wide:border-l wide:border-t-0">
+    <aside className="flex min-w-[320px] max-w-none flex-[1_1_400px] flex-col border-t border-line bg-panel wide:min-h-0 wide:max-w-[460px] wide:border-l wide:border-t-0">
       <div
         role="tablist"
         aria-label="Sections"

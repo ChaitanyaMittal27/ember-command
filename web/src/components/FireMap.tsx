@@ -19,11 +19,13 @@ import {
   INITIAL_VIEW,
   showsIndustrialSources,
   staticFireTooltip,
+  STATION_RADIUS_PX,
+  stationTooltip,
   type ViewState,
 } from "@/lib/mapView";
 import type { TabId } from "@/lib/tabs";
 import { themeRgba } from "@/lib/theme";
-import type { Fire, StaticFire } from "@/types/data";
+import type { Candidate, Fire, StaticFire } from "@/types/data";
 
 // The bundler does not emit MapLibre's worker file, so it is served from public/maplibre/
 // (copied there by scripts/copy-maplibre-worker.mjs before dev and build).
@@ -47,10 +49,14 @@ interface FireMapProps {
   tab: TabId;
   yearFilter: YearFilter;
   regionFilter: RegionFilter;
+  /** The stations of the layout being shown, if the tab shows one. */
+  stations: Candidate[];
+  /** Straight-line reach of a station in km, drawn as a ring around each one. */
+  reachKm: number;
 }
 
 /** The map: CARTO dark basemap under deck.gl layers. Client only (WebGL). */
-export default function FireMap({ data, tab, yearFilter, regionFilter }: FireMapProps) {
+export default function FireMap({ data, tab, yearFilter, regionFilter, stations, reachKm }: FireMapProps) {
   const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW);
 
   const fires = useMemo(
@@ -60,6 +66,34 @@ export default function FireMap({ data, tab, yearFilter, regionFilter }: FireMap
 
   const layers = useMemo(() => {
     if (!data) return [];
+    const ringLayer = new ScatterplotLayer<Candidate>({
+      id: "rings",
+      data: stations,
+      getPosition: (station) => [station.lon, station.lat],
+      getRadius: reachKm * 1000,
+      radiusUnits: "meters",
+      filled: true,
+      stroked: true,
+      getFillColor: themeRgba("station", 0.1),
+      getLineColor: themeRgba("station", 0.55),
+      getLineWidth: 1,
+      lineWidthUnits: "pixels",
+      updateTriggers: { getRadius: reachKm },
+    });
+    const stationLayer = new ScatterplotLayer<Candidate>({
+      id: "stations",
+      data: stations,
+      getPosition: (station) => [station.lon, station.lat],
+      getRadius: STATION_RADIUS_PX,
+      radiusUnits: "pixels",
+      filled: true,
+      stroked: true,
+      getFillColor: themeRgba("station"),
+      getLineColor: themeRgba("ink"),
+      getLineWidth: 2,
+      lineWidthUnits: "pixels",
+      pickable: true,
+    });
     const fireLayer = new ScatterplotLayer<Fire>({
       id: "fires",
       data: fires,
@@ -86,15 +120,16 @@ export default function FireMap({ data, tab, yearFilter, regionFilter }: FireMap
       getFillColor: themeRgba("neutral"),
       pickable: true,
     });
-    return [fireLayer, industrialLayer];
-  }, [data, fires, tab]);
+    // Drawn bottom to top, in the order of the spec's layer table.
+    return [fireLayer, industrialLayer, ringLayer, stationLayer];
+  }, [data, fires, tab, stations, reachKm]);
 
   function getTooltip({ object, layer }: PickingInfo) {
     if (!object || !layer || !data) return null;
-    const text =
-      layer.id === "industrial"
-        ? staticFireTooltip(object as StaticFire)
-        : fireTooltip(object as Fire, data.meta.settings.threshold_min);
+    let text: string;
+    if (layer.id === "stations") text = stationTooltip(object as Candidate);
+    else if (layer.id === "industrial") text = staticFireTooltip(object as StaticFire);
+    else text = fireTooltip(object as Fire, data.meta.settings.threshold_min);
     return { text, style: TOOLTIP_STYLE };
   }
 
