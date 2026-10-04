@@ -5,7 +5,6 @@ import { useAppState } from "@/components/AppStateProvider";
 import { useDataState } from "@/components/DataProvider";
 import { useHistory } from "@/components/HistoryProvider";
 import { AboutTab } from "@/components/tabs/AboutTab";
-import { EvidenceTab } from "@/components/tabs/EvidenceTab";
 import { GapsTab } from "@/components/tabs/GapsTab";
 import { HallsTab } from "@/components/tabs/HallsTab";
 import { HistoryTab } from "@/components/tabs/HistoryTab";
@@ -30,8 +29,6 @@ function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
       return <HallsTab data={data} />;
     case "gaps":
       return <GapsTab data={data} />;
-    case "evidence":
-      return <EvidenceTab data={data} />;
     case "about":
       return <AboutTab data={data} />;
     case "history":
@@ -85,7 +82,7 @@ export function SidePanel() {
   return (
     <aside
       style={{ "--panel-width": `${width}px` } as React.CSSProperties}
-      className="relative flex min-w-[320px] max-w-none flex-[1_1_400px] flex-col border-t border-line bg-panel wide:min-h-0 wide:w-(--panel-width) wide:flex-none wide:border-l wide:border-t-0"
+      className="relative flex min-w-[320px] max-w-none flex-[1_1_480px] flex-col border-t border-line bg-panel wide:min-h-0 wide:w-(--panel-width) wide:flex-none wide:border-l wide:border-t-0"
     >
       {/* Drag handle on the panel's left edge (desktop only): an 8px strip with a 2px line. */}
       <div
@@ -127,8 +124,8 @@ export function SidePanel() {
         />
       </div>
 
-      <div className="flex items-start gap-2 border-b border-line px-4 py-3.5">
-        <div role="tablist" aria-label="Sections" className="flex flex-1 flex-wrap gap-1.5">
+      <div className="flex items-start gap-1.5 border-b border-line px-2 py-3.5">
+        <div role="tablist" aria-label="Sections" className="flex min-w-0 flex-1 flex-wrap gap-1">
           {tabs.map((item, index) => {
             const selected = item.id === tab;
             return (
@@ -140,20 +137,22 @@ export function SidePanel() {
                 type="button"
                 role="tab"
                 id={`tab-${item.id}`}
+                aria-label={item.label}
+                title={item.label}
                 aria-selected={selected}
                 aria-controls="tab-panel"
                 tabIndex={selected ? 0 : -1}
                 onClick={() => selectTab(item.id)}
                 onKeyDown={(event) => onKeyDown(event, index)}
                 className={
-                  "min-h-9 cursor-pointer rounded-md border px-3 py-1.5 text-[13px] " +
+                  "min-h-9 cursor-pointer whitespace-nowrap rounded-md border px-1.5 py-1.5 text-[12px] " +
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station " +
                   (selected
                     ? "border-station bg-station-bg text-ink"
                     : "border-line-strong bg-transparent text-ink-2")
                 }
               >
-                {item.label}
+                {item.short}
               </button>
             );
           })}
@@ -167,7 +166,7 @@ export function SidePanel() {
             setRestoreTo(next.restoreTo);
             setWidth(next.width);
           }}
-          className="hidden size-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line-strong text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station wide:inline-flex"
+          className="hidden h-9 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-line-strong text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station wide:inline-flex"
         >
           {/* Arrows point the way the panel's left edge will move. */}
           <svg viewBox="0 0 16 16" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">

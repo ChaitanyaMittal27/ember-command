@@ -35,10 +35,11 @@ describe("parseStoredWidth", () => {
     expect(parseStoredWidth(" 520.4 ")).toBe(520);
   });
 
-  it("falls back to 400px when the value is missing or invalid", () => {
+  it("falls back to 480px when the value is missing or invalid", () => {
     for (const stored of [null, undefined, "", "wide", "NaN", "-500", "1e3", "12px", "100", "Infinity", "{}"]) {
       expect(parseStoredWidth(stored)).toBe(PANEL_DEFAULT_WIDTH);
     }
+    expect(PANEL_DEFAULT_WIDTH).toBe(480);
   });
 });
 
@@ -81,8 +82,8 @@ describe("toggleExpanded", () => {
   });
 
   it("restores to the default when there is nothing to go back to", () => {
-    expect(toggleExpanded(864, null, 1440)).toEqual({ width: 400, restoreTo: null });
-    expect(toggleExpanded(864, 864, 1440)).toEqual({ width: 400, restoreTo: null });
+    expect(toggleExpanded(864, null, 1440)).toEqual({ width: 480, restoreTo: null });
+    expect(toggleExpanded(864, 864, 1440)).toEqual({ width: 480, restoreTo: null });
   });
 
   it("knows when the panel is expanded", () => {

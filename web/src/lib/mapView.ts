@@ -45,24 +45,33 @@ export function filterFires(fires: Fire[], year: YearFilter, region: RegionFilte
   );
 }
 
-/** Fire dot radius in pixels: bigger for fires that grew faster in their first 48 hours. */
-export function fireRadius(fire: Pick<Fire, "weight">): number {
-  return 2 + fire.weight / 4;
+/**
+ * Fire dot radius in metres on the ground, so dots grow as the map zooms in: bigger for fires
+ * that grew faster in their first 48 hours. On screen it is kept between the two pixel limits.
+ */
+export function fireRadiusMeters(fire: Pick<Fire, "weight">): number {
+  return 700 + fire.weight * 120;
 }
+export const FIRE_MIN_RADIUS_PX = 1;
+export const FIRE_MAX_RADIUS_PX = 6;
+/** Outline of the hollow (unreachable) fires. */
+export const FIRE_STROKE_PX = 1;
 
 /**
  * Opacity (0-1) of a fire dot on a tab. Reachable fires are filled and unreachable ones are hollow
  * on every tab; this only dims them where the tab's subject is something else.
  */
 export function fireOpacity(tab: TabId, reachable: boolean): number {
-  if (tab === "evidence" || tab === "about") return 0.5;
+  if (tab === "about") return 0.5;
   if (tab === "gaps") return reachable ? 0.25 : 1;
+  // Under a layout the fires step back, so the stations and their rings stand out.
+  if (tab === "place" || tab === "howmany" || tab === "halls") return reachable ? 0.4 : 0.55;
   return reachable ? 0.85 : 1;
 }
 
 /** Industrial heat sources are hidden where the map is only a backdrop, and on History. */
 export function showsIndustrialSources(tab: TabId): boolean {
-  return tab !== "evidence" && tab !== "about" && tab !== "history";
+  return tab !== "about" && tab !== "history";
 }
 
 /** The fire dots give way to the detection heat layer on History. */
@@ -76,6 +85,11 @@ export function fireTooltip(fire: Fire, thresholdMin: number): string {
     ? `${mins(fire.nearest_min)} from the nearest possible site`
     : `Beyond ${thresholdMin} min of every site (nearest: ${mins(fire.nearest_min)})`;
   return [`Fire ${fire.fire_id}`, `${fire.date} · ${fire.region}`, `Weight ${fire.weight} (early growth)`, reach].join("\n");
+}
+
+/** Reach rings: fill and outline opacity. On Gaps every site has one, so they are much lighter there. */
+export function ringOpacity(tab: TabId): { fill: number; stroke: number } {
+  return tab === "gaps" ? { fill: 0.04, stroke: 0.3 } : { fill: 0.1, stroke: 0.55 };
 }
 
 /** Station dot radius in pixels (an 11px dot); the selected station is a 15px dot. */

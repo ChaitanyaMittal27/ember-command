@@ -3,17 +3,28 @@ import { REGION_OPTIONS, yearOptions } from "@/lib/filters";
 import { DEFAULT_TAB, TABS, visibleTabs } from "@/lib/tabs";
 
 describe("tabs", () => {
-  it("lists the seven sections in the spec's order, and History only when it is available", () => {
+  it("lists the six sections in order, and History only when it is available", () => {
     expect(visibleTabs(true).map((tab) => tab.label).at(-1)).toBe("History");
-    expect(visibleTabs(true)).toHaveLength(8);
+    expect(visibleTabs(true)).toHaveLength(7);
     expect(visibleTabs(false).map((tab) => tab.label)).toEqual([
       "Overview",
       "Place stations",
       "How many",
       "Existing halls",
       "Gaps",
-      "Evidence",
       "About",
+    ]);
+  });
+
+  it("shows short names on the tabs", () => {
+    expect(visibleTabs(true).map((tab) => tab.short)).toEqual([
+      "Overview",
+      "Place",
+      "How many",
+      "Halls",
+      "Gaps",
+      "About",
+      "History",
     ]);
   });
 

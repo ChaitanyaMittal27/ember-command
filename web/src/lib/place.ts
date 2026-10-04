@@ -30,5 +30,5 @@ export function validationText(evidence: EvidenceFile, variant: Q1VariantId, k: 
   }
   const ks = tested.map((item) => item.k).sort((a, b) => a - b);
   const list = ks.length > 1 ? `${ks.slice(0, -1).join(", ")} and ${ks[ks.length - 1]}` : ks.join("");
-  return `Tested on unseen ${evidence.split.test} fires at K = ${list} (see Evidence).`;
+  return `Tested on unseen ${evidence.split.test} fires at K = ${list} (see About).`;
 }

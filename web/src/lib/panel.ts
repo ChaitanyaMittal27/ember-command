@@ -1,6 +1,6 @@
 // Width of the resizable side panel (desktop only). Pure rules here; the store adds localStorage.
 
-export const PANEL_DEFAULT_WIDTH = 400;
+export const PANEL_DEFAULT_WIDTH = 480;
 export const PANEL_MIN_WIDTH = 320;
 /** The panel may take up to this share of the window width. */
 export const PANEL_MAX_SHARE = 0.6;

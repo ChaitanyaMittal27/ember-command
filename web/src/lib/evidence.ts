@@ -1,4 +1,4 @@
-// Pure helpers for the Gaps, Evidence and About tabs (FRONTEND_SPEC.md sections 7.6-7.8).
+// Pure helpers for the Gaps and About tabs (FRONTEND_SPEC.md sections 7.6-7.8).
 // Everything here only reads and words the exported numbers.
 
 import { int, pct, points, signed } from "@/lib/format";

@@ -1,7 +1,11 @@
+"use client";
+
+import { EvidenceSection } from "@/components/EvidenceSection";
+import { LargerViewDialog, SECONDARY_BUTTON_CLASS, useLargerView } from "@/components/LargerViewDialog";
 import type { AppData } from "@/lib/data";
 
 /** Section 7.8: where the data comes from and what the numbers leave out. */
-export function AboutTab({ data }: { data: AppData }) {
+function DataAndLimits({ data }: { data: AppData }) {
   const { detour, speed_kmh, dispatch_min } = data.meta.settings;
 
   return (
@@ -30,6 +34,31 @@ export function AboutTab({ data }: { data: AppData }) {
       <p>
         Method: facility location (greedy p-median and maximal coverage), validated on a held-out year.
       </p>
+    </div>
+  );
+}
+
+/** The evidence that the layouts hold up on unseen fires, then where the data comes from. */
+export function AboutTab({ data }: { data: AppData }) {
+  const { show, dialogProps } = useLargerView();
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <button type="button" aria-haspopup="dialog" className={SECONDARY_BUTTON_CLASS} onClick={show}>
+          Open larger view
+        </button>
+      </div>
+      <EvidenceSection data={data} />
+      <DataAndLimits data={data} />
+
+      <LargerViewDialog {...dialogProps} title="About FirstDue" titleId="about-dialog-title">
+        {/* Evidence on the left and data and limits on the right from 1200px; one column below that. */}
+        <div className="grid gap-8 min-[1200px]:grid-cols-2 [&>*]:min-w-0">
+          <EvidenceSection data={data} />
+          <DataAndLimits data={data} />
+        </div>
+      </LargerViewDialog>
     </div>
   );
 }

@@ -7,24 +7,29 @@ const INPUT_CLASS =
   "min-h-10 rounded-md border border-line-strong bg-field px-2 py-1.5 text-[14px] text-ink [color-scheme:dark] " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station";
 
-export const SECONDARY_BUTTON_CLASS =
-  "min-h-10 cursor-pointer rounded-md border border-line-strong px-3 text-[13px] text-ink " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station";
-
 interface HistoryRangeFormProps {
   /** Keeps the input ids unique when the form is shown in two places. */
   idPrefix: string;
   /** Extra controls placed after the Load button. */
   children?: React.ReactNode;
+  /** Put the hint beside the Load button where there is room, instead of on its own line. */
+  hintInline?: boolean;
 }
 
 /**
  * The two date inputs and the Load button. The dates live in HistoryProvider, so the form in the
  * tab and the one in the larger view always show the same values.
  */
-export function HistoryRangeForm({ idPrefix, children }: HistoryRangeFormProps) {
+export function HistoryRangeForm({ idPrefix, children, hintInline = false }: HistoryRangeFormProps) {
   const { state, range, setRange, load } = useHistory();
   const check = validateRange(range.start, range.end);
+  const hint = (
+    <p className={"text-[12px] leading-[1.5] text-muted" + (hintInline ? " self-end pb-2.5" : "")} role={check.ok ? undefined : "alert"}>
+      {check.ok
+        ? `${check.days} days. Between ${HISTORY_MIN_DATE} and ${HISTORY_MAX_DATE}, at most ${HISTORY_MAX_DAYS} days at a time.`
+        : check.message}
+    </p>
+  );
 
   return (
     <form
@@ -71,12 +76,9 @@ export function HistoryRangeForm({ idPrefix, children }: HistoryRangeFormProps) 
           Load
         </button>
         {children}
+        {hintInline && hint}
       </div>
-      <p className="text-[12px] leading-[1.5] text-muted" role={check.ok ? undefined : "alert"}>
-        {check.ok
-          ? `${check.days} days. Between ${HISTORY_MIN_DATE} and ${HISTORY_MAX_DATE}, at most ${HISTORY_MAX_DAYS} days at a time.`
-          : check.message}
-      </p>
+      {!hintInline && hint}
     </form>
   );
 }

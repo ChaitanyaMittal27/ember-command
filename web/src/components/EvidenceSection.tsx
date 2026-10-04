@@ -17,8 +17,8 @@ import { pct } from "@/lib/format";
 const SUBHEAD = "text-[14px] font-semibold";
 const CAPTION = "text-[13px] leading-[1.5] text-muted";
 
-/** Section 7.7: how the layouts did on a year they were not fitted on, and the other checks. */
-export function EvidenceTab({ data }: { data: AppData }) {
+/** Section 7.7, now the first part of About: how the layouts did on a year they were not fitted on, and the other checks. */
+export function EvidenceSection({ data }: { data: AppData }) {
   const { state } = useAppState();
   const { evidence } = data;
   const k = state.evidenceK;

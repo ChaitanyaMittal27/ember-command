@@ -18,11 +18,15 @@ import {
   candidateTooltip,
   clampView,
   filterFires,
+  FIRE_MAX_RADIUS_PX,
+  FIRE_MIN_RADIUS_PX,
+  FIRE_STROKE_PX,
   fireOpacity,
-  fireRadius,
+  fireRadiusMeters,
   fireTooltip,
   INITIAL_VIEW,
   PICKING_RADIUS_PX,
+  ringOpacity,
   SELECTED_STATION_RADIUS_PX,
   showsFires,
   showsIndustrialSources,
@@ -148,6 +152,7 @@ export default function FireMap({
 
   const layers = useMemo(() => {
     if (!data) return [];
+    const ring = ringOpacity(tab);
     const ringLayer = new ScatterplotLayer<Candidate>({
       id: "rings",
       data: ringSites ?? stations,
@@ -156,11 +161,11 @@ export default function FireMap({
       radiusUnits: "meters",
       filled: true,
       stroked: true,
-      getFillColor: themeRgba("station", 0.1),
-      getLineColor: themeRgba("station", 0.55),
+      getFillColor: themeRgba("station", ring.fill),
+      getLineColor: themeRgba("station", ring.stroke),
       getLineWidth: 1,
       lineWidthUnits: "pixels",
-      updateTriggers: { getRadius: reachKm },
+      updateTriggers: { getRadius: reachKm, getFillColor: tab, getLineColor: tab },
     });
     const stationLayer = new ScatterplotLayer<Candidate>({
       id: "stations",
@@ -195,14 +200,17 @@ export default function FireMap({
       data: fires,
       visible: showsFires(tab),
       getPosition: (fire) => [fire.lon, fire.lat],
-      getRadius: fireRadius,
-      radiusUnits: "pixels",
+      // Sized in metres so the dots scale with zoom, within pixel limits that keep them visible but small.
+      getRadius: fireRadiusMeters,
+      radiusUnits: "meters",
+      radiusMinPixels: FIRE_MIN_RADIUS_PX,
+      radiusMaxPixels: FIRE_MAX_RADIUS_PX,
       // Reachable fires are filled; unreachable ones are hollow rings (never colour alone).
       filled: true,
       stroked: true,
       getFillColor: (fire) => themeRgba("fire", fire.reachable ? fireOpacity(tab, true) : 0),
       getLineColor: (fire) => themeRgba("fire", fire.reachable ? 0 : fireOpacity(tab, false)),
-      getLineWidth: (fire) => (fire.reachable ? 0 : 1.5),
+      getLineWidth: (fire) => (fire.reachable ? 0 : FIRE_STROKE_PX),
       lineWidthUnits: "pixels",
       pickable: true,
       updateTriggers: { getFillColor: tab, getLineColor: tab },

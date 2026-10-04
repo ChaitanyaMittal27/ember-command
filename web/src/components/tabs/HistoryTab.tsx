@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { HistoryChart } from "@/components/HistoryChart";
 import { useHistory, type HistoryData } from "@/components/HistoryProvider";
-import { HistoryRangeForm, SECONDARY_BUTTON_CLASS } from "@/components/HistoryRangeForm";
+import { HistoryRangeForm } from "@/components/HistoryRangeForm";
+import { LargerViewDialog, SECONDARY_BUTTON_CLASS, useLargerView } from "@/components/LargerViewDialog";
 import { StatCard } from "@/components/StatCard";
 import { ROW, TABLE, TD_LABEL, TD_NUMBER, TH, TH_NUMBER } from "@/components/tableStyles";
 import { int, pct } from "@/lib/format";
@@ -48,46 +49,31 @@ function LoadStatus() {
 }
 
 /** The pop-out view: the same dates and data as the tab, with a much larger chart. */
-function LargerView({ onClose }: { onClose: () => void }) {
+function LargerView() {
   const { state } = useHistory();
   const data = state.status === "ready" ? state.data : null;
   const chart = useChartData(data);
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="history-dialog-title" className="text-[18px] font-semibold">
-          Fire history
-        </h2>
-        <button
-          type="button"
-          autoFocus
-          aria-label="Close larger view"
-          title="Close"
-          onClick={onClose}
-          className="inline-flex size-9 cursor-pointer items-center justify-center rounded-md border border-line-strong text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-station"
-        >
-          <svg viewBox="0 0 16 16" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
-            <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
-          </svg>
-        </button>
-      </div>
-
-      <HistoryRangeForm idPrefix="history-dialog" />
+    <>
+      <HistoryRangeForm idPrefix="history-dialog" hintInline />
       <LoadStatus />
 
       {data && chart && (
         <>
-          {/* About 60% of the dialog's height, and never too short to read. */}
-          <div className="h-[60%] min-h-[280px] shrink-0">
+          {/* About 48% of the dialog's height, so the table under it fits without scrolling at 1440x900. */}
+          <div className="h-[50%] min-h-[280px] shrink-0">
             <HistoryChart series={chart.series} totals={chart.totals} start={data.start} end={data.end} size="large" />
           </div>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-            <div className="grid grid-cols-2 content-start gap-2.5">
-              <StatCard tone="fire" value={int(chart.total)} label="satellite detections" />
-              <StatCard value={int(data.ignitions)} label="fires started (ignitions)" />
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 content-start gap-2.5">
+                <StatCard tone="fire" value={int(chart.total)} label="satellite detections" />
+                <StatCard value={int(data.ignitions)} label="fires started (ignitions)" />
+              </div>
+              <p className="text-[12px] leading-[1.5] text-faint">{TIGER_NOTE}</p>
             </div>
-            <table className={TABLE}>
+            <table className={`${TABLE} [&_td]:py-1 [&_th]:py-1`}>
               <caption className="pb-1 text-left text-[12px] text-muted">
                 Detections per fire centre, {data.start} to {data.end}
               </caption>
@@ -119,9 +105,8 @@ function LargerView({ onClose }: { onClose: () => void }) {
           </div>
         </>
       )}
-
-      <p className="text-[12px] leading-[1.5] text-faint">{TIGER_NOTE}</p>
-    </div>
+      {!data && <p className="text-[12px] leading-[1.5] text-faint">{TIGER_NOTE}</p>}
+    </>
   );
 }
 
@@ -130,9 +115,7 @@ export function HistoryTab() {
   const { state, ensureLoaded } = useHistory();
   const data = state.status === "ready" ? state.data : null;
   const chart = useChartData(data);
-  const dialog = useRef<HTMLDialogElement>(null);
-  // The larger view's content is only mounted while the dialog is open.
-  const [open, setOpen] = useState(false);
+  const { show, dialogProps } = useLargerView();
 
   return (
     <div className="flex flex-col gap-4">
@@ -152,8 +135,7 @@ export function HistoryTab() {
           onClick={() => {
             // Opening never refetches: it shows whatever is loaded (and loads the default once if nothing is).
             ensureLoaded();
-            setOpen(true);
-            dialog.current?.showModal();
+            show();
           }}
         >
           Open larger view
@@ -173,16 +155,9 @@ export function HistoryTab() {
 
       <p className="text-[12px] leading-[1.5] text-faint">{TIGER_NOTE}</p>
 
-      {/* A modal <dialog>: the browser traps focus inside it, closes it on Escape, and returns focus
-          to the button that opened it. */}
-      <dialog
-        ref={dialog}
-        aria-labelledby="history-dialog-title"
-        onClose={() => setOpen(false)}
-        className="m-auto h-[85vh] max-h-none w-[90vw] max-w-none rounded-lg border border-line-strong bg-panel p-0 text-ink backdrop:bg-black/60"
-      >
-        {open && <LargerView onClose={() => dialog.current?.close()} />}
-      </dialog>
+      <LargerViewDialog {...dialogProps} title="Fire history" titleId="history-dialog-title">
+        <LargerView />
+      </LargerViewDialog>
     </div>
   );
 }

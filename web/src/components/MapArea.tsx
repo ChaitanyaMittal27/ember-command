@@ -263,7 +263,7 @@ export function MapArea() {
                   Fire (size = early growth)
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-block size-2 rounded-full border-[1.5px] border-fire" />
+                  <span className="inline-block size-2 rounded-full border border-fire" />
                   Fire beyond reach of any site
                 </div>
               </>
@@ -276,7 +276,7 @@ export function MapArea() {
             )}
             {onGapsTab && (
               <div className="flex items-center gap-2">
-                <span className="inline-block size-3 rounded-full border border-ring-stroke bg-ring-fill" />
+                <span className="inline-block size-3 rounded-full border border-station/30 bg-station/[0.04]" />
                 Within {threshold} minutes of a possible site
               </div>
             )}

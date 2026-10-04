@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   clampView,
   filterFires,
+  FIRE_MAX_RADIUS_PX,
+  FIRE_MIN_RADIUS_PX,
   fireOpacity,
-  fireRadius,
+  fireRadiusMeters,
   fireTooltip,
   INITIAL_VIEW,
   MAX_BOUNDS,
   MAX_ZOOM,
   MIN_ZOOM,
+  ringOpacity,
   showsIndustrialSources,
   staticFireTooltip,
 } from "@/lib/mapView";
@@ -54,24 +57,38 @@ describe("filterFires", () => {
 });
 
 describe("fire dots", () => {
-  it("radius is 2 + weight / 4 pixels", () => {
-    expect(fireRadius({ weight: 1 })).toBe(2.25);
-    expect(fireRadius({ weight: 16 })).toBe(6);
+  it("radius is 700 + weight x 120 metres, kept between 1 and 6 pixels on screen", () => {
+    expect(fireRadiusMeters({ weight: 1 })).toBe(820);
+    expect(fireRadiusMeters({ weight: 16 })).toBe(2620);
+    expect([FIRE_MIN_RADIUS_PX, FIRE_MAX_RADIUS_PX]).toEqual([1, 6]);
   });
 
   it("opacity follows the tab", () => {
-    expect(fireOpacity("place", true)).toBe(0.85);
+    expect(fireOpacity("overview", true)).toBe(0.85);
     expect(fireOpacity("overview", false)).toBe(1);
     expect(fireOpacity("gaps", true)).toBe(0.25);
     expect(fireOpacity("gaps", false)).toBe(1);
-    expect(fireOpacity("evidence", true)).toBe(0.5);
+    expect(fireOpacity("about", true)).toBe(0.5);
     expect(fireOpacity("about", false)).toBe(0.5);
   });
 
-  it("industrial sources are hidden on Evidence and About only", () => {
+  it("fires are dimmed under a layout: 40% reachable, 55% unreachable", () => {
+    for (const tab of ["place", "howmany", "halls"] as const) {
+      expect(fireOpacity(tab, true)).toBe(0.4);
+      expect(fireOpacity(tab, false)).toBe(0.55);
+    }
+  });
+
+  it("reach rings are lighter on Gaps only", () => {
+    expect(ringOpacity("gaps")).toEqual({ fill: 0.04, stroke: 0.3 });
+    expect(ringOpacity("place")).toEqual({ fill: 0.1, stroke: 0.55 });
+    expect(ringOpacity("howmany")).toEqual({ fill: 0.1, stroke: 0.55 });
+  });
+
+  it("industrial sources are hidden on About and History only", () => {
     expect(showsIndustrialSources("place")).toBe(true);
     expect(showsIndustrialSources("gaps")).toBe(true);
-    expect(showsIndustrialSources("evidence")).toBe(false);
+    expect(showsIndustrialSources("history")).toBe(false);
     expect(showsIndustrialSources("about")).toBe(false);
   });
 });

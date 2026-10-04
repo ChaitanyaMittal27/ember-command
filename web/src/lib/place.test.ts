@@ -64,15 +64,15 @@ describe("validationText", () => {
     expect(validationText(evidence, "capped_pmedian", 20)).toContain("37.8%");
   });
 
-  it("points to Evidence at every other K", () => {
-    const fallback = "Tested on unseen 2023 fires at K = 10, 20, 40 and 60 (see Evidence).";
+  it("points to About at every other K", () => {
+    const fallback = "Tested on unseen 2023 fires at K = 10, 20, 40 and 60 (see About).";
     expect(validationText(evidence, "capped_pmedian", 19)).toBe(fallback);
     expect(validationText(evidence, "capped_pmedian", 21)).toBe(fallback);
   });
 
   it("never quotes a test result for the fair variant, which was not tested", () => {
     expect(validationText(evidence, "fair", 20)).toBe(
-      "Tested on unseen 2023 fires at K = 10, 20, 40 and 60 (see Evidence).",
+      "Tested on unseen 2023 fires at K = 10, 20, 40 and 60 (see About).",
     );
   });
 });
