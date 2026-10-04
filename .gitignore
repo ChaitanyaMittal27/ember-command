@@ -229,6 +229,10 @@ CLAUDE.md
 # Project data and web build output
 data/raw/*
 !data/raw/.gitkeep
-data/processed/
+data/processed/*
+!data/processed/.gitkeep
+data/legacy/
+data/reference/
+notebooks/runs/
 node_modules/
 .next/
