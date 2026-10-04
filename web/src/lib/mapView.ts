@@ -87,10 +87,12 @@ export function candidateTooltip(candidate: Candidate, open: boolean): string {
   return [stationTooltip(candidate), action].join("\n");
 }
 
-/** Hover text for a station: name, kind and fire centre. */
-export function stationTooltip(station: Candidate): string {
+/** Hover text for a station: name, kind and fire centre, plus an optional line such as its trucks. */
+export function stationTooltip(station: Candidate, note?: string): string {
   const kind = station.kind === "hall" ? "Existing fire hall" : "Town";
-  return [siteName(station), `${kind} · ${station.region} fire centre`].join("\n");
+  const lines = [siteName(station), `${kind} · ${station.region} fire centre`];
+  if (note) lines.push(note);
+  return lines.join("\n");
 }
 
 /** Hover text for an excluded industrial heat source. */

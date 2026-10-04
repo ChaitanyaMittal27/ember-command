@@ -57,7 +57,11 @@ interface FireMapProps {
   stations: Candidate[];
   /** Straight-line reach of a station in km, drawn as a ring around each one. */
   reachKm: number;
-  /** The station picked up for moving (cand_id), or null. */
+  /** Dot radius in pixels per cand_id, where stations are sized by trucks; others use the default. */
+  stationRadii?: Map<number, number>;
+  /** An extra tooltip line per cand_id, such as the station's trucks. */
+  stationNotes?: Map<number, string>;
+  /** The station picked up for moving or highlighted from a list (cand_id), or null. */
   selectedStation: number | null;
   /** Sites a selected station can move to; empty unless one is selected. */
   candidates: Candidate[];
@@ -75,6 +79,8 @@ export default function FireMap({
   regionFilter,
   stations,
   reachKm,
+  stationRadii,
+  stationNotes,
   selectedStation,
   candidates,
   onStationClick,
@@ -109,7 +115,10 @@ export default function FireMap({
       data: stations,
       getPosition: (station) => [station.lon, station.lat],
       // The selected station is bigger and outlined in the fire-text colour.
-      getRadius: (station) => (station.cand_id === selectedStation ? SELECTED_STATION_RADIUS_PX : STATION_RADIUS_PX),
+      getRadius: (station) => {
+        const radius = stationRadii?.get(station.cand_id) ?? STATION_RADIUS_PX;
+        return station.cand_id === selectedStation ? radius + SELECTED_STATION_RADIUS_PX - STATION_RADIUS_PX : radius;
+      },
       radiusUnits: "pixels",
       filled: true,
       stroked: true,
@@ -118,7 +127,7 @@ export default function FireMap({
       getLineWidth: 2,
       lineWidthUnits: "pixels",
       pickable: true,
-      updateTriggers: { getRadius: selectedStation, getLineColor: selectedStation },
+      updateTriggers: { getRadius: [selectedStation, stationRadii], getLineColor: selectedStation },
     });
     const candidateLayer = new ScatterplotLayer<Candidate>({
       id: "candidates",
@@ -157,12 +166,15 @@ export default function FireMap({
     });
     // Drawn bottom to top, in the order of the spec's layer table.
     return [fireLayer, industrialLayer, candidateLayer, ringLayer, stationLayer];
-  }, [data, fires, tab, stations, reachKm, selectedStation, candidates]);
+  }, [data, fires, tab, stations, reachKm, stationRadii, selectedStation, candidates]);
 
   function getTooltip({ object, layer }: PickingInfo) {
     if (!object || !layer || !data) return null;
     let text: string;
-    if (layer.id === "stations") text = stationTooltip(object as Candidate);
+    if (layer.id === "stations") {
+      const station = object as Candidate;
+      text = stationTooltip(station, stationNotes?.get(station.cand_id));
+    }
     else if (layer.id === "candidates") {
       const candidate = object as Candidate;
       text = candidateTooltip(candidate, stations.some((station) => station.cand_id === candidate.cand_id));

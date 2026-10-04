@@ -10,6 +10,7 @@ import type { AppData } from "@/lib/data";
 import { int, pct } from "@/lib/format";
 import { filterFires, showsIndustrialSources } from "@/lib/mapView";
 import { replaceStation } from "@/lib/edit";
+import { stationLoadNote, truckRadii } from "@/lib/howmany";
 import type { AppState } from "@/lib/state";
 import type { Candidate } from "@/types/data";
 
@@ -50,6 +51,15 @@ function LayoutSummary({
       </>
     );
   }
+  if (state.tab === "howmany") {
+    if (data.q2.k_star === null) return <span className="text-ink-2">Target not reached</span>;
+    return (
+      <>
+        <span className="font-mono font-medium text-station-text">{int(data.q2.k_star)}</span> stations ·{" "}
+        <span className="font-mono font-medium text-ink">{int(data.q2.total_trucks)}</span> trucks
+      </>
+    );
+  }
   return <span className="text-ink-2">No layout shown yet</span>;
 }
 
@@ -60,12 +70,24 @@ export function MapArea() {
   const industrial = showsIndustrialSources(state.tab);
   const { layout, live } = usePlaceLayout(data);
   const onPlaceTab = state.tab === "place";
+  const onHowManyTab = state.tab === "howmany";
 
-  // The stations drawn on the map: the Q1 layout at K (or the edited one) on the Place stations tab.
+  // The stations drawn on the map: the Q1 layout at K (or the edited one) on Place stations,
+  // and the Q2 layout at k_star on How many.
   const stations = useMemo(() => {
-    if (!data || !onPlaceTab) return NO_STATIONS;
-    return layout.flatMap((candId) => data.candidatesById.get(candId) ?? []);
-  }, [data, onPlaceTab, layout]);
+    if (!data) return NO_STATIONS;
+    const ids = onPlaceTab ? layout : onHowManyTab ? data.q2.stations.map((station) => station.cand_id) : [];
+    return ids.length ? ids.flatMap((candId) => data.candidatesById.get(candId) ?? []) : NO_STATIONS;
+  }, [data, onPlaceTab, onHowManyTab, layout]);
+
+  // On How many, stations are sized by their trucks and say so in their tooltip.
+  const truckSizing = useMemo(() => {
+    if (!data || !onHowManyTab || data.q2.stations.length === 0) return undefined;
+    return {
+      radii: truckRadii(data.q2.stations),
+      notes: new Map(data.q2.stations.map((station) => [station.cand_id, stationLoadNote(station)])),
+    };
+  }, [data, onHowManyTab]);
 
   // Candidate sites only show while a station is picked up for moving.
   const moving = onPlaceTab && state.selectedStation !== null;
@@ -98,8 +120,8 @@ export function MapArea() {
     ? `Map of ${scope} showing ${int(shown.length)} fires as orange dots; ` +
       `${int(beyond)} of them, drawn as hollow rings, are beyond reach of every possible site.` +
       (stations.length
-        ? ` ${stations.length === 1 ? "1 station is" : `${stations.length} stations are`} shown as blue dots, ` +
-          `each with a ring for its ${threshold}-minute reach.`
+        ? ` ${stations.length === 1 ? "1 station is" : `${stations.length} stations are`} shown as blue dots` +
+          `${onHowManyTab ? " sized by their trucks" : ""}, each with a ring for its ${threshold}-minute reach.`
         : "") +
       (industrial ? ` Grey dots mark ${int(data.staticFires.fires.length)} excluded industrial heat sources.` : "")
     : "Map of British Columbia. The fire data is still loading.";
@@ -110,6 +132,7 @@ export function MapArea() {
       data-fires-shown={data ? shown.length : undefined}
       data-stations-shown={data ? stations.length : undefined}
       data-selected-station={moving ? (state.selectedStation ?? undefined) : undefined}
+      data-highlighted-station={onHowManyTab ? (state.hoveredStation ?? undefined) : undefined}
       data-candidates-shown={data ? candidates.length : undefined}
       className="relative h-[60vh] min-w-0 flex-[999_1_560px] overflow-hidden bg-map wide:h-auto"
     >
@@ -120,7 +143,9 @@ export function MapArea() {
         regionFilter={state.regionFilter}
         stations={stations}
         reachKm={data?.meta.settings.reach_km ?? 0}
-        selectedStation={moving ? state.selectedStation : null}
+        stationRadii={truckSizing?.radii}
+        stationNotes={truckSizing?.notes}
+        selectedStation={moving ? state.selectedStation : onHowManyTab ? state.hoveredStation : null}
         candidates={candidates}
         onStationClick={(candId) => {
           if (onPlaceTab) dispatch({ type: "selectStation", candId: candId === state.selectedStation ? null : candId });
@@ -152,7 +177,7 @@ export function MapArea() {
             {stations.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="inline-block size-2.5 rounded-full border-2 border-ink bg-station" />
-                Station, ring = {threshold}-minute reach
+                Station{onHowManyTab ? " (size = trucks)" : ""}, ring = {threshold}-minute reach
               </div>
             )}
             {industrial && (

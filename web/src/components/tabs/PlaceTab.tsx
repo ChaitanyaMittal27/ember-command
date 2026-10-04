@@ -146,7 +146,7 @@ export function PlaceTab({ data }: { data: AppData }) {
         </span>
       </div>
 
-      <CoverageChart curve={variant.curve} k={state.k} kMax={q1.k_max} ceiling={meta.ceiling.all_years} />
+      <CoverageChart curve={variant.curve} dotAt={state.k} kMax={q1.k_max} ceiling={meta.ceiling.all_years} />
 
       {shown && <RegionBars byRegion={shown.by_region} />}
 

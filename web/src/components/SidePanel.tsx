@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { useDataState } from "@/components/DataProvider";
+import { HowManyTab } from "@/components/tabs/HowManyTab";
 import { OverviewTab } from "@/components/tabs/OverviewTab";
 import { PlaceTab } from "@/components/tabs/PlaceTab";
 import type { AppData } from "@/lib/data";
@@ -12,6 +13,7 @@ import { TABS, type TabId } from "@/lib/tabs";
 function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
   if (tab === "overview") return <OverviewTab data={data} />;
   if (tab === "place") return <PlaceTab data={data} />;
+  if (tab === "howmany") return <HowManyTab data={data} />;
   const active = TABS.find((item) => item.id === tab) ?? TABS[0];
   return (
     <>

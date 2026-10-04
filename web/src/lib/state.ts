@@ -24,6 +24,8 @@ export interface AppState {
   /** The layout after the user moved stations, or null while showing the optimized one. */
   editedLayout: number[] | null;
   selectedStation: number | null;
+  /** The station whose list row is hovered or focused, highlighted on the map. */
+  hoveredStation: number | null;
   hallTruckMode: HallTruckMode;
   gapThreshold: GapThreshold;
   evidenceK: EvidenceK;
@@ -38,6 +40,7 @@ export const initialState: AppState = {
   trucksPerStation: 2,
   editedLayout: null,
   selectedStation: null,
+  hoveredStation: null,
   hallTruckMode: "need",
   gapThreshold: 60,
   evidenceK: 20,
@@ -52,6 +55,7 @@ export type AppAction =
   | { type: "setTrucksPerStation"; trucks: number }
   | { type: "setEditedLayout"; layout: number[]; selected: number | null }
   | { type: "selectStation"; candId: number | null }
+  | { type: "hoverStation"; candId: number | null }
   | { type: "resetEdits" }
   | { type: "setHallTruckMode"; mode: HallTruckMode }
   | { type: "setGapThreshold"; threshold: GapThreshold }
@@ -70,7 +74,7 @@ const NO_EDITS = { editedLayout: null, selectedStation: null } as const;
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "setTab":
-      return { ...state, tab: action.tab, selectedStation: null };
+      return { ...state, tab: action.tab, selectedStation: null, hoveredStation: null };
     case "setYearFilter":
       return { ...state, yearFilter: action.value };
     case "setRegionFilter":
@@ -95,6 +99,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, editedLayout: action.layout, selectedStation: action.selected };
     case "selectStation":
       return { ...state, selectedStation: action.candId };
+    case "hoverStation":
+      return state.hoveredStation === action.candId ? state : { ...state, hoveredStation: action.candId };
     case "resetEdits":
       return { ...state, ...NO_EDITS };
     case "setHallTruckMode":
