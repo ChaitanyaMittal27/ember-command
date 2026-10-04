@@ -224,6 +224,7 @@ learning-docs/
 
 # agents
 AGENTS.md
+CLAUDE.md
 
 # Project data and web build output
 data/raw/*

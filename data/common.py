@@ -11,6 +11,9 @@ YEAR = 2023
 START = date(YEAR, 5, 1)
 END = date(YEAR, 10, 31)
 BC_BBOX = "-139.1,48.2,-114.0,60.0"
+DATA_DIR = Path(__file__).resolve().parent
+RAW_DIR = DATA_DIR / "raw"
+PROCESSED_DIR = DATA_DIR / "processed"
 
 
 def load_bc_boundary():
@@ -19,7 +22,7 @@ def load_bc_boundary():
     Source: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-1-states-provinces/
     The generalized coastline can exclude some near-shore detections.
     """
-    cache_dir = Path(__file__).resolve().parent / "raw" / "cache"
+    cache_dir = RAW_DIR / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     boundary_path = cache_dir / "ne_10m_admin_1_states_provinces.zip"
     if not boundary_path.exists():
