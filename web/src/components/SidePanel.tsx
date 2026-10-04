@@ -3,15 +3,17 @@
 import { useRef } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { useDataState } from "@/components/DataProvider";
+import { useHistory } from "@/components/HistoryProvider";
 import { AboutTab } from "@/components/tabs/AboutTab";
 import { EvidenceTab } from "@/components/tabs/EvidenceTab";
 import { GapsTab } from "@/components/tabs/GapsTab";
 import { HallsTab } from "@/components/tabs/HallsTab";
+import { HistoryTab } from "@/components/tabs/HistoryTab";
 import { HowManyTab } from "@/components/tabs/HowManyTab";
 import { OverviewTab } from "@/components/tabs/OverviewTab";
 import { PlaceTab } from "@/components/tabs/PlaceTab";
 import type { AppData } from "@/lib/data";
-import { TABS, type TabId } from "@/lib/tabs";
+import { visibleTabs, type TabId } from "@/lib/tabs";
 
 /** The active tab's content. */
 function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
@@ -30,27 +32,37 @@ function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
       return <EvidenceTab data={data} />;
     case "about":
       return <AboutTab data={data} />;
+    case "history":
+      return <HistoryTab />;
   }
 }
 
 export function SidePanel() {
   const { state, dispatch } = useAppState();
   const dataState = useDataState();
+  const history = useHistory();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const tab = state.tab;
+  const tabs = visibleTabs(history.configured);
+
+  function selectTab(id: TabId) {
+    dispatch({ type: "setTab", tab: id });
+    // The first visit to History loads the default date range.
+    if (id === "history") history.ensureLoaded();
+  }
 
   // Arrow keys, Home and End move between tabs, as in the WAI-ARIA tabs pattern.
   function onKeyDown(event: React.KeyboardEvent, index: number) {
     const moves: Record<string, number> = {
-      ArrowRight: (index + 1) % TABS.length,
-      ArrowLeft: (index - 1 + TABS.length) % TABS.length,
+      ArrowRight: (index + 1) % tabs.length,
+      ArrowLeft: (index - 1 + tabs.length) % tabs.length,
       Home: 0,
-      End: TABS.length - 1,
+      End: tabs.length - 1,
     };
     const next = moves[event.key];
     if (next === undefined) return;
     event.preventDefault();
-    dispatch({ type: "setTab", tab: TABS[next].id });
+    selectTab(tabs[next].id);
     buttons.current[next]?.focus();
   }
 
@@ -61,7 +73,7 @@ export function SidePanel() {
         aria-label="Sections"
         className="flex flex-wrap gap-1.5 border-b border-line px-4 py-3.5"
       >
-        {TABS.map((item, index) => {
+        {tabs.map((item, index) => {
           const selected = item.id === tab;
           return (
             <button
@@ -75,7 +87,7 @@ export function SidePanel() {
               aria-selected={selected}
               aria-controls="tab-panel"
               tabIndex={selected ? 0 : -1}
-              onClick={() => dispatch({ type: "setTab", tab: item.id })}
+              onClick={() => selectTab(item.id)}
               onKeyDown={(event) => onKeyDown(event, index)}
               className={
                 "min-h-9 cursor-pointer rounded-md border px-3 py-1.5 text-[13px] " +

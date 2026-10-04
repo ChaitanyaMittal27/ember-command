@@ -60,9 +60,14 @@ export function fireOpacity(tab: TabId, reachable: boolean): number {
   return reachable ? 0.85 : 1;
 }
 
-/** Industrial heat sources are hidden where the map is only a backdrop. */
+/** Industrial heat sources are hidden where the map is only a backdrop, and on History. */
 export function showsIndustrialSources(tab: TabId): boolean {
-  return tab !== "evidence" && tab !== "about";
+  return tab !== "evidence" && tab !== "about" && tab !== "history";
+}
+
+/** The fire dots give way to the detection heat layer on History. */
+export function showsFires(tab: TabId): boolean {
+  return tab !== "history";
 }
 
 /** Hover text for a fire: id, date, weight, nearest minutes and region. */

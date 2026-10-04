@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { REGION_OPTIONS, yearOptions } from "@/lib/filters";
-import { DEFAULT_TAB, TABS } from "@/lib/tabs";
+import { DEFAULT_TAB, TABS, visibleTabs } from "@/lib/tabs";
 
 describe("tabs", () => {
-  it("lists the seven sections in the spec's order", () => {
-    expect(TABS.map((tab) => tab.label)).toEqual([
+  it("lists the seven sections in the spec's order, and History only when it is available", () => {
+    expect(visibleTabs(true).map((tab) => tab.label).at(-1)).toBe("History");
+    expect(visibleTabs(true)).toHaveLength(8);
+    expect(visibleTabs(false).map((tab) => tab.label)).toEqual([
       "Overview",
       "Place stations",
       "How many",

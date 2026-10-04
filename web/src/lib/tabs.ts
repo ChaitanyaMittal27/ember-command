@@ -8,8 +8,15 @@ export const TABS = [
   { id: "gaps", label: "Gaps" },
   { id: "evidence", label: "Evidence" },
   { id: "about", label: "About" },
+  // Shown only when the server has a history database (see HistoryProvider).
+  { id: "history", label: "History" },
 ] as const;
 
 export type TabId = (typeof TABS)[number]["id"];
 
 export const DEFAULT_TAB: TabId = "place";
+
+/** The tabs to show: History only when it is available. */
+export function visibleTabs(historyAvailable: boolean) {
+  return TABS.filter((tab) => tab.id !== "history" || historyAvailable);
+}

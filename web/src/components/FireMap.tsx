@@ -10,6 +10,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { AppData } from "@/lib/data";
 import type { RegionFilter, YearFilter } from "@/lib/filters";
 import type { HallMarker, NextMarker } from "@/lib/halls";
+import { busiestCell, cellRadius, cellTooltip } from "@/lib/history";
+import type { CellRow } from "@/lib/historyTypes";
 import {
   BASEMAP_STYLE,
   CANDIDATE_RADIUS_PX,
@@ -22,6 +24,7 @@ import {
   INITIAL_VIEW,
   PICKING_RADIUS_PX,
   SELECTED_STATION_RADIUS_PX,
+  showsFires,
   showsIndustrialSources,
   staticFireTooltip,
   STATION_RADIUS_PX,
@@ -92,6 +95,8 @@ interface FireMapProps {
   nextStations: NextMarker[];
   /** The next station highlighted from its list (cand_id), or null. */
   highlightedNext: number | null;
+  /** Satellite detections per map cell, drawn as a heat layer on the History tab. */
+  heatCells: CellRow[];
   /** Sites a selected station can move to; empty unless one is selected. */
   candidates: Candidate[];
   onStationClick: (candId: number) => void;
@@ -116,6 +121,7 @@ export default function FireMap({
   halls,
   nextStations,
   highlightedNext,
+  heatCells,
   candidates,
   onStationClick,
   onCandidateClick,
@@ -175,6 +181,7 @@ export default function FireMap({
     const fireLayer = new ScatterplotLayer<Fire>({
       id: "fires",
       data: fires,
+      visible: showsFires(tab),
       getPosition: (fire) => [fire.lon, fire.lat],
       getRadius: fireRadius,
       radiusUnits: "pixels",
@@ -244,10 +251,22 @@ export default function FireMap({
       outlineColor: themeRgba("map"),
     });
     // Drawn bottom to top, in the order of the spec's layer table.
+    const busiest = busiestCell(heatCells);
+    const heatLayer = new ScatterplotLayer<CellRow>({
+      id: "heat",
+      data: heatCells,
+      getPosition: (cell) => [cell.lon, cell.lat],
+      // Area grows with the detections in the cell.
+      getRadius: (cell) => cellRadius(cell.detections, busiest),
+      radiusUnits: "pixels",
+      getFillColor: themeRgba("fire", 0.6),
+      pickable: true,
+      updateTriggers: { getRadius: busiest },
+    });
     const base = ringsBelowFires
       ? [ringLayer, fireLayer, industrialLayer, candidateLayer]
       : [fireLayer, industrialLayer, candidateLayer, ringLayer];
-    return [...base, stationLayer, hallLayer, nextLayer, rankLayer];
+    return [heatLayer, ...base, stationLayer, hallLayer, nextLayer, rankLayer];
   }, [
     data,
     fires,
@@ -262,12 +281,14 @@ export default function FireMap({
     halls,
     nextStations,
     highlightedNext,
+    heatCells,
   ]);
 
   function getTooltip({ object, layer }: PickingInfo) {
     if (!object || !layer || !data) return null;
     let text: string;
-    if (layer.id === "halls" || layer.id === "next-stations") text = (object as HallMarker | NextMarker).tooltip;
+    if (layer.id === "heat") text = cellTooltip(object as CellRow);
+    else if (layer.id === "halls" || layer.id === "next-stations") text = (object as HallMarker | NextMarker).tooltip;
     else if (layer.id === "stations") {
       const station = object as Candidate;
       text = stationTooltip(station, stationNotes?.get(station.cand_id));

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { useData } from "@/components/DataProvider";
+import { useHistory, type HistoryData } from "@/components/HistoryProvider";
 import { usePlaceLayout } from "@/components/usePlaceLayout";
 import { curvePoint } from "@/lib/curve";
 import type { AppData } from "@/lib/data";
@@ -12,6 +13,8 @@ import { filterFires, showsIndustrialSources } from "@/lib/mapView";
 import { replaceStation } from "@/lib/edit";
 import { gapReachKm } from "@/lib/evidence";
 import { hallMarkers, nextMarkers, type HallMarker, type NextMarker } from "@/lib/halls";
+import { totalDetections } from "@/lib/history";
+import type { CellRow } from "@/lib/historyTypes";
 import { stationLoadNote, truckRadii } from "@/lib/howmany";
 import type { AppState } from "@/lib/state";
 import type { Candidate } from "@/types/data";
@@ -23,18 +26,31 @@ const OVERLAY_CLASS = "absolute z-10 rounded-lg border border-line-strong bg-ove
 const NO_STATIONS: Candidate[] = [];
 const NO_HALLS: HallMarker[] = [];
 const NO_NEXT: NextMarker[] = [];
+const NO_CELLS: CellRow[] = [];
 
 /** The tab-dependent summary line in the "Current layout" chip. */
 function LayoutSummary({
   state,
   data,
   liveCoverage,
+  history,
 }: {
   state: AppState;
   data: AppData;
   /** Coverage of the edited layout, while there is one. */
   liveCoverage?: number;
+  /** The loaded history range, on the History tab. */
+  history: HistoryData | null;
 }) {
+  if (state.tab === "history") {
+    if (!history) return <span className="text-ink-2">No detections loaded</span>;
+    return (
+      <>
+        <span className="font-mono font-medium text-fire-text">{int(totalDetections(history.daily))}</span> satellite
+        detections · {history.start} to {history.end}
+      </>
+    );
+  }
   if (state.tab === "overview") {
     return (
       <>
@@ -99,6 +115,9 @@ export function MapArea() {
   const onHowManyTab = state.tab === "howmany";
   const onHallsTab = state.tab === "halls";
   const onGapsTab = state.tab === "gaps";
+  const onHistoryTab = state.tab === "history";
+  const historyState = useHistory().state;
+  const history = onHistoryTab && historyState.status === "ready" ? historyState.data : null;
 
   // On Existing halls: every hall as a square sized by trucks, plus the next stations to add.
   const halls = useMemo(
@@ -155,8 +174,14 @@ export function MapArea() {
   const scope =
     (state.regionFilter === "all" ? "British Columbia" : `the ${state.regionFilter} fire centre`) +
     (state.yearFilter === "all" ? "" : ` in ${state.yearFilter}`);
-  const description = data
-    ? `Map of ${scope} showing ${int(shown.length)} fires as orange dots; ` +
+  const description = !data
+    ? "Map of British Columbia. The fire data is still loading."
+    : onHistoryTab
+      ? history
+        ? `Map of British Columbia showing ${int(totalDetections(history.daily))} satellite detections from ` +
+          `${history.start} to ${history.end} as orange dots, one per 0.1-degree cell, larger where there were more.`
+        : "Map of British Columbia. No satellite detections are loaded yet."
+      : `Map of ${scope} showing ${int(shown.length)} fires as orange dots; ` +
       `${int(beyond)} of them, drawn as hollow rings, are beyond reach of every possible site.` +
       (stations.length
         ? ` ${stations.length === 1 ? "1 station is" : `${stations.length} stations are`} shown as blue dots` +
@@ -169,13 +194,13 @@ export function MapArea() {
         ? ` ${int(halls.length)} existing fire halls are shown as blue squares sized by their trucks, and the next ` +
           `${nextStations.length} stations to add as numbered blue circles.`
         : "") +
-      (industrial ? ` Grey dots mark ${int(data.staticFires.fires.length)} excluded industrial heat sources.` : "")
-    : "Map of British Columbia. The fire data is still loading.";
+      (industrial ? ` Grey dots mark ${int(data.staticFires.fires.length)} excluded industrial heat sources.` : "");
 
   return (
     <main
       aria-label={description}
-      data-fires-shown={data ? shown.length : undefined}
+      data-fires-shown={data ? (onHistoryTab ? 0 : shown.length) : undefined}
+      data-heat-cells={data ? (history?.cells.length ?? 0) : undefined}
       data-stations-shown={data ? stations.length : undefined}
       data-selected-station={moving ? (state.selectedStation ?? undefined) : undefined}
       data-highlighted-station={onHowManyTab || onHallsTab ? (state.hoveredStation ?? undefined) : undefined}
@@ -200,6 +225,7 @@ export function MapArea() {
         halls={halls}
         nextStations={nextStations}
         highlightedNext={onHallsTab ? state.hoveredStation : null}
+        heatCells={history?.cells ?? NO_CELLS}
         candidates={candidates}
         onStationClick={(candId) => {
           if (onPlaceTab) dispatch({ type: "selectStation", candId: candId === state.selectedStation ? null : candId });
@@ -215,19 +241,33 @@ export function MapArea() {
           <div className={`${OVERLAY_CLASS} left-4 top-4 flex flex-col gap-0.5`}>
             <div className="text-[12px] uppercase tracking-[0.8px] text-muted">Current layout</div>
             <div className="text-[15px]">
-              <LayoutSummary state={state} data={data} liveCoverage={onPlaceTab ? live?.coverage : undefined} />
+              <LayoutSummary
+                state={state}
+                data={data}
+                liveCoverage={onPlaceTab ? live?.coverage : undefined}
+                history={history}
+              />
             </div>
           </div>
 
           <div className={`${OVERLAY_CLASS} bottom-4 left-4 flex flex-col gap-1.5 text-[13px]`}>
-            <div className="flex items-center gap-2">
-              <span className="inline-block size-2 rounded-full bg-fire" />
-              Fire (size = early growth)
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-block size-2 rounded-full border-[1.5px] border-fire" />
-              Fire beyond reach of any site
-            </div>
+            {onHistoryTab ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-block size-3 rounded-full bg-fire opacity-60" />
+                Satellite detections per 0.1° cell (size = how many)
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block size-2 rounded-full bg-fire" />
+                  Fire (size = early growth)
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block size-2 rounded-full border-[1.5px] border-fire" />
+                  Fire beyond reach of any site
+                </div>
+              </>
+            )}
             {stations.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="inline-block size-2.5 rounded-full border-2 border-ink bg-station" />

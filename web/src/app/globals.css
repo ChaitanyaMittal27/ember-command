@@ -32,6 +32,17 @@
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
+/* Chart series, one per fire centre (History tab). Checked for colour-blind separation on the panel.
+   Plain variables, not theme tokens: they are only used through var(), never as class names. */
+:root {
+  --color-series-1: #3987e5;
+  --color-series-2: #d95926;
+  --color-series-3: #199e70;
+  --color-series-4: #c98500;
+  --color-series-5: #d55181;
+  --color-series-6: #008300;
+}
+
 body {
   background: var(--color-ground);
   color: var(--color-ink);
