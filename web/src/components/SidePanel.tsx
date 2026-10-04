@@ -3,6 +3,9 @@
 import { useRef } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { useDataState } from "@/components/DataProvider";
+import { AboutTab } from "@/components/tabs/AboutTab";
+import { EvidenceTab } from "@/components/tabs/EvidenceTab";
+import { GapsTab } from "@/components/tabs/GapsTab";
 import { HallsTab } from "@/components/tabs/HallsTab";
 import { HowManyTab } from "@/components/tabs/HowManyTab";
 import { OverviewTab } from "@/components/tabs/OverviewTab";
@@ -10,19 +13,24 @@ import { PlaceTab } from "@/components/tabs/PlaceTab";
 import type { AppData } from "@/lib/data";
 import { TABS, type TabId } from "@/lib/tabs";
 
-/** The active tab's content. Tabs without a component yet are built in later steps. */
+/** The active tab's content. */
 function TabContent({ tab, data }: { tab: TabId; data: AppData }) {
-  if (tab === "overview") return <OverviewTab data={data} />;
-  if (tab === "place") return <PlaceTab data={data} />;
-  if (tab === "howmany") return <HowManyTab data={data} />;
-  if (tab === "halls") return <HallsTab data={data} />;
-  const active = TABS.find((item) => item.id === tab) ?? TABS[0];
-  return (
-    <>
-      <h2 className="text-[18px] font-semibold">{active.heading}</h2>
-      <p className="text-[13px] leading-[1.55] text-muted">This section is built in step {active.step}.</p>
-    </>
-  );
+  switch (tab) {
+    case "overview":
+      return <OverviewTab data={data} />;
+    case "place":
+      return <PlaceTab data={data} />;
+    case "howmany":
+      return <HowManyTab data={data} />;
+    case "halls":
+      return <HallsTab data={data} />;
+    case "gaps":
+      return <GapsTab data={data} />;
+    case "evidence":
+      return <EvidenceTab data={data} />;
+    case "about":
+      return <AboutTab data={data} />;
+  }
 }
 
 export function SidePanel() {

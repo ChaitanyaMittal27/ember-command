@@ -10,6 +10,7 @@ import type { AppData } from "@/lib/data";
 import { int, pct } from "@/lib/format";
 import { filterFires, showsIndustrialSources } from "@/lib/mapView";
 import { replaceStation } from "@/lib/edit";
+import { gapReachKm } from "@/lib/evidence";
 import { hallMarkers, nextMarkers, type HallMarker, type NextMarker } from "@/lib/halls";
 import { stationLoadNote, truckRadii } from "@/lib/howmany";
 import type { AppState } from "@/lib/state";
@@ -72,7 +73,20 @@ function LayoutSummary({
       </>
     );
   }
-  return <span className="text-ink-2">No layout shown yet</span>;
+  if (state.tab === "gaps") {
+    return (
+      <>
+        Every site open ·{" "}
+        <span className="font-mono font-medium text-station-text">{data.gaps.threshold_min}</span>-minute reach
+      </>
+    );
+  }
+  return (
+    <span className="text-ink-2">
+      No layout shown · <span className="font-mono font-medium text-fire-text">{int(data.meta.counts.fires)}</span>{" "}
+      fires
+    </span>
+  );
 }
 
 /** The map column: the map itself, plus the layout chip, legend and attribution laid over it. */
@@ -84,6 +98,7 @@ export function MapArea() {
   const onPlaceTab = state.tab === "place";
   const onHowManyTab = state.tab === "howmany";
   const onHallsTab = state.tab === "halls";
+  const onGapsTab = state.tab === "gaps";
 
   // On Existing halls: every hall as a square sized by trucks, plus the next stations to add.
   const halls = useMemo(
@@ -112,9 +127,10 @@ export function MapArea() {
     };
   }, [data, onHowManyTab]);
 
-  // Candidate sites only show while a station is picked up for moving.
+  // Candidate sites show while a station is picked up for moving, and on Gaps, where every site is open.
   const moving = onPlaceTab && state.selectedStation !== null;
-  const candidates = data && moving ? data.candidates.candidates : NO_STATIONS;
+  const candidates = data && (moving || onGapsTab) ? data.candidates.candidates : NO_STATIONS;
+  const reachKm = !data ? 0 : onGapsTab ? gapReachKm(data.gaps, data.meta.settings.reach_km) : data.meta.settings.reach_km;
 
   // Escape puts the station back down.
   useEffect(() => {
@@ -146,6 +162,9 @@ export function MapArea() {
         ? ` ${stations.length === 1 ? "1 station is" : `${stations.length} stations are`} shown as blue dots` +
           `${onHowManyTab ? " sized by their trucks" : ""}, each with a ring for its ${threshold}-minute reach.`
         : "") +
+      (onGapsTab
+        ? ` All ${int(candidates.length)} possible sites are shown, each with a ring for its ${threshold}-minute reach.`
+        : "") +
       (halls.length
         ? ` ${int(halls.length)} existing fire halls are shown as blue squares sized by their trucks, and the next ` +
           `${nextStations.length} stations to add as numbered blue circles.`
@@ -172,7 +191,9 @@ export function MapArea() {
         yearFilter={state.yearFilter}
         regionFilter={state.regionFilter}
         stations={stations}
-        reachKm={data?.meta.settings.reach_km ?? 0}
+        reachKm={reachKm}
+        ringSites={onGapsTab ? candidates : undefined}
+        ringsBelowFires={onGapsTab}
         stationRadii={truckSizing?.radii}
         stationNotes={truckSizing?.notes}
         selectedStation={moving ? state.selectedStation : onHowManyTab ? state.hoveredStation : null}
@@ -211,6 +232,12 @@ export function MapArea() {
               <div className="flex items-center gap-2">
                 <span className="inline-block size-2.5 rounded-full border-2 border-ink bg-station" />
                 Station{onHowManyTab ? " (size = trucks)" : ""}, ring = {threshold}-minute reach
+              </div>
+            )}
+            {onGapsTab && (
+              <div className="flex items-center gap-2">
+                <span className="inline-block size-3 rounded-full border border-ring-stroke bg-ring-fill" />
+                Within {threshold} minutes of a possible site
               </div>
             )}
             {halls.length > 0 && (

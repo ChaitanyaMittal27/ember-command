@@ -76,6 +76,10 @@ interface FireMapProps {
   stations: Candidate[];
   /** Straight-line reach of a station in km, drawn as a ring around each one. */
   reachKm: number;
+  /** Sites to draw reach rings around, if not the stations (the Gaps tab rings every site). */
+  ringSites?: Candidate[];
+  /** Draw the rings under the fires instead of over them. */
+  ringsBelowFires?: boolean;
   /** Dot radius in pixels per cand_id, where stations are sized by trucks; others use the default. */
   stationRadii?: Map<number, number>;
   /** An extra tooltip line per cand_id, such as the station's trucks. */
@@ -104,6 +108,8 @@ export default function FireMap({
   regionFilter,
   stations,
   reachKm,
+  ringSites,
+  ringsBelowFires = false,
   stationRadii,
   stationNotes,
   selectedStation,
@@ -126,7 +132,7 @@ export default function FireMap({
     if (!data) return [];
     const ringLayer = new ScatterplotLayer<Candidate>({
       id: "rings",
-      data: stations,
+      data: ringSites ?? stations,
       getPosition: (station) => [station.lon, station.lat],
       getRadius: reachKm * 1000,
       radiusUnits: "meters",
@@ -238,8 +244,25 @@ export default function FireMap({
       outlineColor: themeRgba("map"),
     });
     // Drawn bottom to top, in the order of the spec's layer table.
-    return [fireLayer, industrialLayer, candidateLayer, ringLayer, stationLayer, hallLayer, nextLayer, rankLayer];
-  }, [data, fires, tab, stations, reachKm, stationRadii, selectedStation, candidates, halls, nextStations, highlightedNext]);
+    const base = ringsBelowFires
+      ? [ringLayer, fireLayer, industrialLayer, candidateLayer]
+      : [fireLayer, industrialLayer, candidateLayer, ringLayer];
+    return [...base, stationLayer, hallLayer, nextLayer, rankLayer];
+  }, [
+    data,
+    fires,
+    tab,
+    stations,
+    reachKm,
+    ringSites,
+    ringsBelowFires,
+    stationRadii,
+    selectedStation,
+    candidates,
+    halls,
+    nextStations,
+    highlightedNext,
+  ]);
 
   function getTooltip({ object, layer }: PickingInfo) {
     if (!object || !layer || !data) return null;
@@ -251,7 +274,11 @@ export default function FireMap({
     }
     else if (layer.id === "candidates") {
       const candidate = object as Candidate;
-      text = candidateTooltip(candidate, stations.some((station) => station.cand_id === candidate.cand_id));
+      // Sites are only clickable while a station is being moved.
+      text =
+        selectedStation === null
+          ? stationTooltip(candidate)
+          : candidateTooltip(candidate, stations.some((station) => station.cand_id === candidate.cand_id));
     }
     else if (layer.id === "industrial") text = staticFireTooltip(object as StaticFire);
     else text = fireTooltip(object as Fire, data.meta.settings.threshold_min);
